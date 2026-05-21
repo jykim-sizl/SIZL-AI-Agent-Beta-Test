@@ -2,7 +2,7 @@
 
 SIZL Agentic Brain 사내 베타테스트의 피드백 루프를 자동화하는 시스템입니다.
 
-베타 테스터가 웹 폼으로 이슈를 제출하면, 시스템이 GitHub Issue를 자동 생성하고 LLM(Claude)이 원인을 분석해 PR 초안을 만듭니다. 처리 현황은 Google Sheets 대시보드에 실시간으로 반영되고, 매일 17시에 Slack으로 요약이 발송됩니다.
+베타 테스터가 회사 이메일로 웹 폼에 접근하면, 시스템이 **Members 시트**에서 해당 이메일을 검증해 등록된 직원만 제출을 허용합니다. 제출된 이슈는 GitHub Issue로 자동 등록되고, 빈 브랜치와 PR이 자동 생성됩니다. LLM(Claude)은 이슈를 분석해 원인 가설을 PR 본문에 남기며, 실제 코드 수정은 개발자가 직접 합니다. 등록자 이름·팀 등 직원 정보는 Members 시트에서 자동으로 가져와 Raw Issues 시트에 채워집니다. 처리 현황은 Google Sheets 대시보드에 실시간으로 반영되고, 매일 17시에 Slack으로 요약이 발송됩니다.
 
 ---
 
@@ -10,9 +10,10 @@ SIZL Agentic Brain 사내 베타테스트의 피드백 루프를 자동화하는
 
 | 기능 | 설명 |
 |---|---|
+| 직원 인증 | 폼 제출 시 이메일을 Members 시트와 대조해 등록된 직원만 허용 |
 | 이슈 제출 폼 | 회사 이메일 한 줄로 접근, 클립보드 이미지 붙여넣기 지원 |
-| GitHub Issue 자동 생성 | 폼 제출 즉시 라벨 포함 Issue 등록 |
-| LLM 자동 분석 + PR 생성 | Claude API로 원인 분석 → confidence ≥ 0.5이면 PR 초안 자동 생성 |
+| GitHub Issue 자동 생성 | 폼 제출 즉시 라벨 포함 Issue 등록. 등록자 이름·팀은 Members 시트에서 자동 조회 |
+| LLM 분석 + 빈 PR 자동 생성 | Issue 생성 시 빈 브랜치와 PR을 자동 생성. LLM이 원인 가설을 PR 본문에 기재. 코드 수정은 개발자가 직접 |
 | Google Sheets 동기화 | Webhook 실시간 반영 + 매일 17시 전수 동기화 |
 | 일일 Slack 보고 | 매일 17:05 KST 운영 채널에 통계 요약 자동 발송 |
 
@@ -30,8 +31,8 @@ SIZL-AI-Agent-Beta-Test/
 │   │   │   ├── api/                # HTTP 라우터 (issues, webhooks, health)
 │   │   │   ├── services/           # 비즈니스 로직
 │   │   │   │   ├── issue/          # 폼 → GitHub Issue 변환
-│   │   │   │   ├── llm/            # LLM 분석 + diff 생성
-│   │   │   │   ├── pr/             # PR 생성
+│   │   │   │   ├── llm/            # LLM 이슈 분석 (원인 가설 생성)
+│   │   │   │   ├── pr/             # 빈 브랜치 + 빈 PR 생성
 │   │   │   │   ├── sheet/          # Google Sheets 동기화
 │   │   │   │   └── sync/           # 일일 전수 동기화
 │   │   │   ├── adapters/           # 외부 시스템 연동 (GitHub, Claude, Sheets, Slack)
@@ -53,6 +54,22 @@ SIZL-AI-Agent-Beta-Test/
 ├── CLAUDE.md
 └── README.md
 ```
+
+---
+
+## Google Sheets 구조
+
+하나의 스프레드시트에 4개의 시트로 운영됩니다.
+
+| 시트명 | 용도 | 관리 주체 |
+|---|---|---|
+| **Members** | 직원 디렉토리 (이메일·이름·팀·직급·활성 여부) | 운영자가 수동 관리 |
+| **Raw Issues** | 이슈 원장. 자동 컬럼(A–K, Q–R, T–AC) + 수작업 컬럼(L–P, S) | 자동화 + 운영자 |
+| **Daily Snapshot** | 매일 17시 통계 1행 누적 | 자동화 |
+| **Dashboard** | KPI 위젯 + 차트. Raw Issues / Daily Snapshot 기반 | 자동 계산 |
+
+> **Members 시트 컬럼:** A(이메일) · B(이름) · C(팀) · D(직급) · E(활성: TRUE/FALSE)
+> 퇴사자는 삭제하지 않고 E열을 FALSE로 변경하면 즉시 접근이 차단됩니다.
 
 ---
 

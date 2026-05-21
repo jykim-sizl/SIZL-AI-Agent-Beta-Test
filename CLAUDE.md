@@ -12,9 +12,9 @@ The target GitHub repository for issues is `Sizl-Neolab/SIZL-Agentic-Brain-Issue
 
 Automates the feedback loop for an internal AI product beta test:
 
-1. Beta testers submit bug reports or improvement requests via a **web form** (company email only, no GitHub account needed).
-2. Backend creates a **GitHub Issue** automatically with structured labels.
-3. A **Webhook triggers LLM analysis** (Claude API): root-cause hypothesis + diff patch → PR is auto-created if confidence ≥ 0.5.
+1. Beta testers enter their company email on the web form. The backend looks up the email in the **Members sheet** — unregistered emails are rejected (403). Name and team are fetched automatically from the same sheet.
+2. Backend creates a **GitHub Issue** automatically with structured labels. Submitter name and team are populated from the Members sheet lookup.
+3. A **Webhook triggers**: an empty branch and empty PR are created automatically. LLM (Claude API) analyzes the issue and writes a root-cause hypothesis into the PR body. **No code changes are made automatically** — developers fill in the code themselves.
 4. Issue/PR state is **mirrored to Google Sheets** (Raw Issues + Daily Snapshot) in near-real-time and fully reconciled at 17:00 KST daily.
 5. A **Slack summary** is posted daily at 17:05 KST; failures alert within 5 minutes.
 
@@ -63,17 +63,19 @@ infra/
 
 - **Service Layer never imports a concrete adapter.** All external systems (GitHub, Claude, Sheets, Slack) are injected via ABC interfaces (`GitHubPort`, `LLMPort`, `SheetPort`, `NotifierPort`). This enables unit testing with mocks and future worker extraction.
 - **Operator-written columns (L–P, S) in Google Sheets are never overwritten by automation.** Auto-managed columns are A–K, Q–R, T–AC.
+- **Member validation happens before everything else.** Every form submission is checked against the Members sheet. Inactive or unregistered emails are rejected immediately.
+- **Auto-generated PRs are always empty branches** — the system never writes code automatically. LLM analysis (root-cause hypothesis) is written into the PR body as context for the developer.
 - **Auto-generated PRs require at least one human review before merge** (GitHub branch protection rule).
-- **LLM confidence threshold is 0.5.** Below that, a comment is posted to the issue but no PR is created.
 
 ### Core Services
 
 | Service | Responsibility |
 |---|---|
-| `IssueService` | Form → GitHub Issue body (Markdown) + label assignment |
-| `LLMService` | Fetch code context → Claude API → validate JSON → dry-run diff |
-| `PRService` | Branch + commit + PR creation with standard body template |
-| `SheetService` | Row append/update with in-memory index cache; idempotent |
+| `MemberService` | Look up member by email in Members sheet. Returns name/team/position or raises 403 if not found or inactive |
+| `IssueService` | Form + member info → GitHub Issue body (Markdown) + label assignment |
+| `LLMService` | Claude API → root-cause hypothesis → write analysis into PR body |
+| `PRService` | Empty branch + empty PR creation with LLM analysis in body |
+| `SheetService` | Row append/update with in-memory index cache; idempotent. Never overwrites operator columns (L–P, S) |
 | `SyncService` | Daily full reconciliation of GitHub ↔ Sheets + Daily Snapshot append |
 
 ### Tech Stack Summary
@@ -100,7 +102,7 @@ infra/
 |---|---|---|
 | R1 | W1 | Email-only form access, bug/enhancement form types, Raw Issues sheet |
 | R2 | W2 | Env capture, clipboard image paste, GitHub Issue auto-creation, PR status sync |
-| R3 | W3 | LLM analysis, conditional PR generation, confidence gating, fallback comment |
+| R3 | W3 | LLM analysis, empty branch + PR auto-creation, LLM analysis written to PR body |
 | R4 | W4 | Full daily sync, Daily Snapshot, Dashboard, Slack daily report, rollback toggles |
 | R5 | W4+1 | Public beta open to all testers |
 
