@@ -2,113 +2,107 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository Purpose
+## Repository State
 
-This is a **documentation-only** repository containing design artifacts for the **SIZL Agentic Brain Beta Test Automation Tool**. All files are in `docs/` as `.docx` and `.pdf`. There is no source code here; the implementation lives in a separate monorepo (`sizl-beta-tool`).
+This is the **monorepo for the SIZL Agentic Brain Beta Test Automation Tool**. The repo is mid-transition: design docs in `docs/` describe the full system, while `apps/api/` currently holds the Phase 0 scaffold (FastAPI app + structure, no business logic yet). `apps/web/` and `packages/` are reserved but not populated.
 
-The target GitHub repository for issues is `Sizl-Neolab/SIZL-Agentic-Brain-Issue-Track`.
+Target GitHub repo where issues/PRs are created by automation: `Sizl-Neolab/SIZL-Agentic-Brain-Issue-Track` (separate from this repo).
+
+The current PRD is `docs/PRD_v4_0.*`; v3.0 and earlier are in `docs/history/`.
 
 ## What This System Does
 
 Automates the feedback loop for an internal AI product beta test:
 
-1. Beta testers enter their company email on the web form. The backend looks up the email in the **Members sheet** — unregistered emails are rejected (403). Name and team are fetched automatically from the same sheet.
-2. Backend creates a **GitHub Issue** automatically with structured labels. Submitter name and team are populated from the Members sheet lookup.
-3. A **Webhook triggers**: an empty branch and empty PR are created automatically. LLM (Claude API) analyzes the issue and writes a root-cause hypothesis into the PR body. **No code changes are made automatically** — developers fill in the code themselves.
-4. Issue/PR state is **mirrored to Google Sheets** (Raw Issues + Daily Snapshot) in near-real-time and fully reconciled at 17:00 KST daily.
-5. A **Slack summary** is posted daily at 17:05 KST; failures alert within 5 minutes.
+1. Beta testers enter their company email on a web form. Backend looks up the email in **Members** — unregistered or inactive emails are rejected (403). Name/team are auto-filled from the lookup.
+2. Backend creates a **GitHub Issue** with structured labels.
+3. **Bug issues only**: a webhook creates an empty branch + empty PR, and the LLM (Claude API) writes a root-cause hypothesis into the PR body. No code is written automatically.
+4. Issue/PR state is mirrored to Google Sheets (Raw Bugs / Raw Enhancements / Daily Snapshot) in near-real-time and fully reconciled at 17:00 KST daily.
+5. Slack summary posts daily at 17:05 KST.
 
-## Document Index
+## Common Commands
 
-| File | Contents |
-|---|---|
-| `PRD_v3.0` | Product requirements, user stories, feature list (P1–P3), release plan (W1–W4) |
-| `시스템_아키텍처_상세설계서_v1.0` | Component specs, data models, sequence diagrams, API contracts, deployment topology |
-| `기술스택_명세서_v1.0` | Per-component tech selection with rationale and rejected alternatives |
-| `베타테스트_도구_구현계획서_v2.0` | Weekly delivery plan (W0–W4), directory structure, pre-conditions |
-| `베타테스트_도구_개발계획서_v2.0` | Earlier overview covering components, data flow, Sheets schema |
-| `docs/history/` | Superseded drafts (v1.1, v2.0 PRD; v1.0 implementation plan) |
+All backend commands run from `apps/api/`:
 
-## Planned System Architecture
+```bash
+cd apps/api
 
-The implementation follows **Hexagonal (Ports & Adapters)** combined with **Event-Driven** design.
+# Install dependencies (creates .venv/)
+uv venv
+uv pip install -e ".[dev]"
 
-### Layer Structure (strict top-down dependency)
+# Run dev server (hot reload on src/)
+.venv/bin/uvicorn src.main:app --reload
+# → http://localhost:8000/health, /docs
 
-```
-Frontend (Next.js)
-    └── API Layer (FastAPI routers)
-            └── Service Layer (business logic, depends only on ABCs)
-                    └── Adapter Layer (concrete external integrations)
-```
+# Tests
+.venv/bin/pytest                              # all tests (pytest-asyncio auto mode)
+.venv/bin/pytest tests/test_foo.py::test_bar  # single test
+.venv/bin/pytest -k "member"                  # by name pattern
 
-### Monorepo Layout (`sizl-beta-tool/`)
+# Lint + typecheck
+.venv/bin/ruff check src/ tests/
+.venv/bin/ruff format src/ tests/
+.venv/bin/mypy src/                           # strict mode (see pyproject.toml)
 
-```
-apps/
-  api/src/
-    api/          # FastAPI routers: issues.py, webhooks.py, health.py
-    services/     # issue/, llm/, sheet/, github/ — each isolatable as a worker
-    adapters/     # github_adapter.py, anthropic_adapter.py, sheets_adapter.py
-    core/         # config.py, logging.py, auth.py, exceptions.py
-    models/       # Pydantic schemas / DTOs
-  web/            # Next.js form UI
-packages/
-  shared-schemas/ # Pydantic + Zod schemas (kept in sync)
-infra/
-  github-actions/ # deploy-api.yml, deploy-web.yml, daily-sync.yml (17:00 KST cron)
+# Docker (for parity with Phase B deploy target)
+docker build -t sizl-beta-api .
+docker run --env-file .env -p 8000:8000 sizl-beta-api
 ```
 
-### Key Architectural Rules
+Required env vars are declared in `apps/api/src/core/config.py` (loaded via pydantic-settings from `apps/api/.env`). Missing any of them will fail app startup.
 
-- **Service Layer never imports a concrete adapter.** All external systems (GitHub, Claude, Sheets, Slack) are injected via ABC interfaces (`GitHubPort`, `LLMPort`, `SheetPort`, `NotifierPort`). This enables unit testing with mocks and future worker extraction.
-- **Operator-written columns (L–P, S) in Google Sheets are never overwritten by automation.** Auto-managed columns are A–K, Q–R, T–AC.
-- **Member validation happens before everything else.** Every form submission is checked against the Members sheet. Inactive or unregistered emails are rejected immediately.
-- **Auto-generated PRs are always empty branches** — the system never writes code automatically. LLM analysis (root-cause hypothesis) is written into the PR body as context for the developer.
-- **Auto-generated PRs require at least one human review before merge** (GitHub branch protection rule).
+## Architecture
 
-### Core Services
+**Hexagonal (Ports & Adapters) + event-driven.** Strict top-down dependency:
+
+```
+api/        FastAPI routers — thin, only HTTP concerns
+  ↓
+services/   business logic; imports ABC ports only, never concrete adapters
+  ↓
+adapters/   concrete integrations (GitHub, Anthropic, Sheets, Slack)
+```
+
+Cross-cutting: `core/` (config, logging, exceptions), `models/` (Pydantic DTOs).
+
+### Non-obvious rules (read before editing)
+
+- **Services depend on ABCs, never on adapters.** `GitHubPort`, `LLMPort`, `SheetPort`, `NotifierPort` live alongside the services that consume them. Adapters implement them. This is what makes unit tests possible (mocks injected via the ABC) and lets services be extracted as workers later.
+- **Member validation runs first on every form submission.** Reject before any other side effect. Inactive members (E column = FALSE) are treated the same as unregistered.
+- **Members lookup is from a local `apps/api/data/Members.xlsx` for the beta period**, not from Google Sheets. Schema: 이름 / 팀 / 이메일 (no 직급 in v4.1). The file is gitignored (`*.xlsx`); see `apps/api/data/readmd.md`.
+- **Enhancement-type issues skip the LLM and PR pipeline entirely.** Only `bug` label triggers LLM analysis + empty-branch PR creation. Enhancements are recorded to the sheet and that's it. (ADR-006)
+- **Auto-generated PRs are always empty.** The LLM writes a root-cause hypothesis into the PR body — never into code. Branch protection requires at least one human review before merge.
+- **Operator columns in Google Sheets are never overwritten.** In Raw Bugs / Raw Enhancements, columns L–P and S are human-edited; automation only touches A–K, Q–R, T–AC. Sheet writes must be idempotent.
+- **Four sheets, not one Raw Issues.** Per ADR-003: `Raw Bugs`, `Raw Enhancements`, `Daily Snapshot`, `Dashboard`. The `SheetPort` exposes `append_bug` / `append_enhancement` separately rather than a single `append_issue`.
+- **Phase A vs Phase B deployment.** Phase A (current, through W3) = local docker / `pnpm dev`. Phase B (W3+) = Cloud Run + Vercel. Don't add Cloud Run-specific config to Phase A code paths. (ADR-001)
+- **Anthropic API key is not yet issued.** W3 LLM work must run with a stub `LLMPort` implementation; don't gate work on the real key.
+
+### Core services
 
 | Service | Responsibility |
 |---|---|
-| `MemberService` | Look up member by email in Members sheet. Returns name/team/position or raises 403 if not found or inactive |
-| `IssueService` | Form + member info → GitHub Issue body (Markdown) + label assignment |
-| `LLMService` | Claude API → root-cause hypothesis → write analysis into PR body |
-| `PRService` | Empty branch + empty PR creation with LLM analysis in body |
-| `SheetService` | Row append/update with in-memory index cache; idempotent. Never overwrites operator columns (L–P, S) |
-| `SyncService` | Daily full reconciliation of GitHub ↔ Sheets + Daily Snapshot append |
+| `MemberService` | Email → name/team from local Members.xlsx; raises 403 if missing/inactive |
+| `IssueService` | Form + member → GitHub Issue body + labels |
+| `LLMService` | Claude API → root-cause hypothesis (bug only); stubbed until key arrives |
+| `PRService` | Empty branch + empty PR with LLM analysis in body (bug only) |
+| `SheetService` | Idempotent append/update against Raw Bugs / Raw Enhancements; preserves operator columns |
+| `SyncService` | Daily 17:00 KST reconciliation GitHub ↔ Sheets + Daily Snapshot append |
 
-### Tech Stack Summary
+### Tech stack (locked-in choices)
 
-| Area | Choice |
-|---|---|
-| Backend | Python 3.12 + FastAPI 0.115 + Pydantic v2 + uvicorn |
-| HTTP client | httpx (async/sync, used for Slack & supplemental GitHub calls) |
-| GitHub | PyGithub 2.5 + httpx for Tree API / GraphQL |
-| LLM | `anthropic` SDK 0.40+; default model `claude-sonnet-4-6` |
-| Sheets | `google-api-python-client` 2.150 (batchUpdate required; gspread alone insufficient) |
-| Package mgr | `uv` (Python), `pnpm` workspaces (Node) |
-| Linting | `ruff` + `mypy` (Python); ESLint + Prettier (TypeScript) |
-| Tests | `pytest` + `pytest-asyncio`; adapters are mocked via ABC |
-| Frontend | Next.js 15 (App Router) + TypeScript 5.6 + Tailwind 4 + React Hook Form + Zod |
-| Hosting | Cloud Run (Backend, min 1 instance) + Vercel (Frontend) |
-| Secrets | Google Secret Manager — never in code or logs |
-| Scheduler | GitHub Actions cron (`daily-sync.yml`) → calls `/sync` endpoint |
-| DB | None in MVP; SQLite added in W4 for event log + row-index cache |
+- Python 3.12 + FastAPI + Pydantic v2; `uv` for env/deps
+- `anthropic` SDK, default model `claude-sonnet-4-6`
+- `PyGithub` + `httpx` (httpx needed for Tree API / GraphQL paths PyGithub doesn't cover)
+- `google-api-python-client` (gspread alone is insufficient — `batchUpdate` is required for sheet writes)
+- `structlog` JSON logger (configured in `core/logging.py`)
+- `pytest` + `pytest-asyncio` (auto mode); adapters mocked via ABC
+- Frontend (not yet scaffolded): Next.js 15 App Router + Zod + React Hook Form
+- Scheduler: GitHub Actions cron (`infra/github-actions/daily-sync.yml`) hits `/sync`
 
-### Release Plan
+## Working with the design docs
 
-| Release | Week | Key deliverables |
-|---|---|---|
-| R1 | W1 | Email-only form access, bug/enhancement form types, Raw Issues sheet |
-| R2 | W2 | Env capture, clipboard image paste, GitHub Issue auto-creation, PR status sync |
-| R3 | W3 | LLM analysis, empty branch + PR auto-creation, LLM analysis written to PR body |
-| R4 | W4 | Full daily sync, Daily Snapshot, Dashboard, Slack daily report, rollback toggles |
-| R5 | W4+1 | Public beta open to all testers |
-
-## Working With This Repo
-
-The documents are in Korean. To extract text for editing or review, use Python's `zipfile` module (DOCX files are ZIP archives):
+`docs/` contains `.docx` and `.pdf` (Korean). DOCX is a ZIP — extract text with:
 
 ```bash
 python3 -c "
@@ -120,4 +114,13 @@ with zipfile.ZipFile('docs/<file>.docx', 'r') as z:
 "
 ```
 
-PDF reading requires `poppler` (`brew install poppler`), which may not be installed.
+PDF reading needs `poppler` (`brew install poppler`), which may not be installed.
+
+| Doc | Contents |
+|---|---|
+| `PRD_v4_0` | Current product requirements, feature list, release plan |
+| `시스템_아키텍처_상세설계서_v1.0` | Component specs, data models, sequence diagrams, API contracts |
+| `기술스택_명세서_v1.0` | Tech choices with rationale and rejected alternatives |
+| `베타테스트_도구_구현계획서_v2.0` | Weekly delivery plan (W0–W4) |
+| `베타테스트_도구_개발계획서_v2.0` | Earlier overview: components, data flow, Sheets schema |
+| `docs/history/` | Superseded drafts (PRD v1.1/v2.0/v3.0; impl plan v1.0) |
