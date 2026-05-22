@@ -1,0 +1,175 @@
+name: 버그 리포트
+description: SIZL Agentic Brain 베타테스트 중 발견한 버그를 제보해주세요.
+title: "bug(): "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 버그 리포트
+        Agentic Brain 사용 중 발견한 버그를 제보해주세요.
+        제목(`bug(): ` 뒤)에 한 줄 요약을 적어주시고, 아래 항목을 채워주세요.
+
+  - type: input
+    id: reporter
+    attributes:
+      label: 등록자
+      description: 본인 이름을 입력해주세요.
+      placeholder: 예- 홍길동
+    validations:
+      required: true
+
+  - type: input
+    id: account
+    attributes:
+      label: 테스트 계정
+      description: QA 진행 시 Agentic Brain 에 로그인한 계정(이메일)을 입력해주세요.
+      placeholder: 예- diana1@sizl.co.kr
+    validations:
+      required: true
+
+  - type: input
+    id: access_time
+    attributes:
+      label: 접속 시간
+      description: 문제가 발생한 시각을 입력해주세요. (KST 기준)
+      placeholder: 예- 2026-05-22 14:30
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 테스트 환경
+      description: |
+        웹 폼으로 제출하면 자동으로 채워집니다. GitHub 에서 직접 작성할 때만 입력해주세요.
+        예) macOS 14.5 / Chrome 125.0.6422 / 1920×1080 / Asia/Seoul
+      placeholder: OS / 브라우저 / 화면 해상도 / 타임존
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test_area
+    attributes:
+      label: 테스트 영역
+      description: 어느 영역에서 문제가 발생했나요?
+      options:
+        - Research agent
+        - Document agent
+        - 기타
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cause_type
+    attributes:
+      label: 원인 유형 (추정)
+      description: 추정되는 원인 분류를 선택해주세요.
+      options:
+        - Backend
+        - Prompting
+        - Cache
+        - 로그인 오류
+        - Frontend
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause_detail
+    attributes:
+      label: 원인 상세
+      description: 추정 원인에 대한 부연 설명이 있다면 작성해주세요.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 심각도
+      options:
+        - P1
+        - P2
+        - P3
+        - P4
+    validations:
+      required: true
+
+  - type: input
+    id: feature
+    attributes:
+      label: 테스트하려는 세부 기능
+      description: 어떤 세부 기능에서 발생한 버그인가요?
+      placeholder: 예- 문서 비교 결과 다운로드, 워크플로우 검색 바
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 시나리오 구체적인 설명
+      description: 어떤 상황에서 무엇을 시도하고 있었는지 구체적으로 작성해주세요.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproduction_frequency
+    attributes:
+      label: 재현 빈도
+      options:
+        - 항상
+        - 가끔
+        - 드물게
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: 재현 단계
+      description: 버그를 재현하는 단계를 순서대로 작성해주세요.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 예상 동작과 실제 동작
+      description: 기대했던 동작과 실제로 일어난 동작을 작성해주세요.
+      value: |
+        **예상 동작-**
+
+
+        **실제 동작-**
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 문제 발생 화면
+      description: 이 텍스트 영역에 이미지를 드래그 앤 드롭하거나 붙여넣기로 첨부해주세요.
+      placeholder: 여기에 이미지를 드래그하거나 붙여넣기
+
+  - type: textarea
+    id: io
+    attributes:
+      label: 입력값 / 출력값
+      description: 가능하면 실제 입력과 출력을 함께 적어주세요.
+      value: |
+        **입력-**
+
+
+        **실제 출력-**
+
+
+        **기대 출력-**
+
+  - type: textarea
+    id: etc
+    attributes:
+      label: 비고
+      description: 그 외 참고할 내용이 있다면 작성해주세요. (참고 링크, 관련 이슈 번호 등)
