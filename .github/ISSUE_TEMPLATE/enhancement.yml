@@ -1,0 +1,108 @@
+name: 개선 사항
+description: SIZL Agentic Brain 사용 중 발견한 개선 사항이나 추가하고 싶은 기능을 제안해주세요.
+title: "enhance(): "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 개선 사항 제안
+        Agentic Brain 사용 중 발견한 개선 사항이나 추가하고 싶은 기능을 작성해주세요.
+        제목(`enhance(): ` 뒤)에 한 줄 요약을 적어주시고, 아래 항목을 채워주세요.
+
+  - type: input
+    id: reporter
+    attributes:
+      label: 등록자
+      description: 본인 이름을 입력해주세요.
+      placeholder: 예- 홍길동
+    validations:
+      required: true
+
+  - type: input
+    id: account
+    attributes:
+      label: 테스트 계정
+      description: 테스트에 사용한 계정(이메일)을 입력해주세요.
+      placeholder: 예- diana1@sizl.co.kr
+    validations:
+      required: true
+
+  - type: dropdown
+    id: opinion
+    attributes:
+      label: 의견
+      description: 개선 사항의 유형을 선택해주세요.
+      options:
+        - 사용성 개선
+        - 기능 고도화
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      options:
+        - P1
+        - P2
+        - P3
+        - P4
+    validations:
+      required: true
+
+  - type: input
+    id: feature
+    attributes:
+      label: 관련 기능
+      description: 어떤 세부 기능에 대한 개선인가요?
+      placeholder: 예- 문서 비교 결과 다운로드, 워크플로우 검색 바
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: 페이지 URL
+      description: 개선 사항이 발생한 페이지의 URL을 입력해주세요.
+      placeholder: 예- /workflows, /agents/document, /chat
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 화면 상세 이미지
+      description: 이 텍스트 영역에 이미지를 드래그 앤 드롭하거나 붙여넣기로 첨부해주세요.
+      placeholder: 여기에 이미지를 드래그하거나 붙여넣기
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 개선 제안 내용
+      description: 현재 동작과 개선 후 기대 동작을 구체적으로 작성해주세요.
+      value: |
+        **현재 동작-**
+
+
+        **개선 후 기대 동작-**
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_effect
+    attributes:
+      label: 기대효과
+      description: 이 개선이 적용되면 어떤 효과를 기대할 수 있나요?
+      placeholder: |
+        -
+        -
+    validations:
+      required: true
+
+  - type: textarea
+    id: etc
+    attributes:
+      label: 비고
+      description: 그 외 참고할 내용이 있다면 작성해주세요. (참고 링크, 관련 이슈 번호 등)
