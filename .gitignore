@@ -20,3 +20,7 @@ node_modules/
 # Secrets
 *.pem
 *.json.key
+*.xlsx
+
+sizl-beta-keys/
+sizl-beta-test-sheet-service-account.json
