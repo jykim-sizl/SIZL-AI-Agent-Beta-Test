@@ -37,6 +37,17 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: environment
+    attributes:
+      label: 테스트 환경
+      description: |
+        웹 폼으로 제출하면 자동으로 채워집니다. GitHub 에서 직접 작성할 때만 입력해주세요.
+        예) macOS 14.5 / Chrome 125.0.6422 / 1920×1080 / Asia/Seoul
+      placeholder: OS / 브라우저 / 화면 해상도 / 타임존
+    validations:
+      required: true
+
   - type: dropdown
     id: test_area
     attributes:
