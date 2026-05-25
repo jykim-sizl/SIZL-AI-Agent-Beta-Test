@@ -65,7 +65,6 @@ def test_member_verify_is_eligible_when_active() -> None:
         email="alice@sizl.co.kr",
         name="Alice",
         team="QA",
-        position="Engineer",
         is_active=True,
     )
     assert m.is_eligible() is True
@@ -81,9 +80,16 @@ def test_member_verify_not_eligible_when_inactive() -> None:
     assert m.is_eligible() is False
 
 
-def test_member_verify_position_optional() -> None:
-    m = MemberVerify(email="a@b.co", name="A", team="T", is_active=True)
-    assert m.position is None
+def test_member_verify_rejects_unknown_field() -> None:
+    """position 등 시스템에서 사용하지 않는 필드는 거부 (extra=forbid)."""
+    with pytest.raises(ValidationError):
+        MemberVerify(
+            email="a@b.co",
+            name="A",
+            team="T",
+            position="Engineer",
+            is_active=True,
+        )
 
 
 def test_analysis_result_requires_url() -> None:
