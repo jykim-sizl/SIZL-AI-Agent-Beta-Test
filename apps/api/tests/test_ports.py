@@ -8,10 +8,13 @@ from src.adapters.impl import (
     DummyLLMAdapter,
     DummySheetAdapter,
 )
-from src.adapters.ports import GitHubPort, IssuePort, LLMPort, SheetPort
 from src.models.analysis_result import AnalysisResult
 from src.models.bug_report import BugReport, Severity
 from src.models.enhancement_request import EnhancementRequest
+from src.services.github import GitHubPort
+from src.services.issue import IssuePort
+from src.services.llm import LLMPort
+from src.services.sheet import SheetPort
 
 
 def _bug() -> BugReport:
