@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.adapters.ports.llm_port import LLMPort
 from src.models.analysis_result import AnalysisResult
 from src.models.bug_report import BugReport
+from src.services.llm.port import LLMPort
 
 
 class DummyLLMAdapter(LLMPort):

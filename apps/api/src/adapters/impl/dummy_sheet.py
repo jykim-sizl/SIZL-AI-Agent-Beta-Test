@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.adapters.ports.sheet_port import SheetPort
+from src.services.sheet.port import SheetPort
 
 
 class DummySheetAdapter(SheetPort):

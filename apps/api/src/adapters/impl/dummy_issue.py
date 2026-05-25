@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.adapters.ports.issue_port import IssuePort
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
+from src.services.issue.port import IssuePort
 
 
 class DummyIssueAdapter(IssuePort):
