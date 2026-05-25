@@ -127,9 +127,9 @@ API 문서: `http://localhost:8000/docs`
 | Phase | 내용 | 상태 |
 |---|---|---|
 | Phase 0 | 프로젝트 스캐폴딩 | ✅ 완료 |
-| Phase 1 | 데이터 모델 (Pydantic 스키마) | 🔲 예정 |
+| Phase 1 | 데이터 모델 (Pydantic 스키마) | ✅ 완료 |
 | Phase 2 | Backend 코어 | 🔲 예정 |
-| Phase 3 | Adapter 인터페이스 + 구현체 | 🔲 예정 |
+| Phase 3 | Port 인터페이스 정의 (구현체는 W2) | ✅ 완료 |
 | Phase 4 | Service Layer | 🔲 예정 |
 | Phase 5 | API Routes | 🔲 예정 |
 | Phase 6 | Frontend | 🔲 예정 |
