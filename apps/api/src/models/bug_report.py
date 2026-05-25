@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     P1 = "P1"
     P2 = "P2"
     P3 = "P3"
