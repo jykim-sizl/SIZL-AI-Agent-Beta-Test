@@ -22,6 +22,8 @@
 - `SheetPort`를 ADR-003에 정렬: 단일 `append_issue(dict)` → `append_bug(row)` + `append_enhancement(row)` 분리. ADR-001/PRD v4.0에 따라 `verify_member`는 제거 (Members는 로컬 xlsx 기반, 별도 `MemberPort` 신설 예정).
 - README 릴리스 계획표 갱신 (Phase 1 ✅, Phase 3 Port 정의 ✅), PRD 표기 v3.0 → v4.0.
 - `Severity`를 `class(str, Enum)` → `class(StrEnum)` (Py 3.12 권장 형태).
+- **Port ABC 위치 컨벤션 정렬** — 새 ADR 채택 후 `src/adapters/ports/<x>_port.py` → `src/services/<x>/port.py`로 이동. `adapters/ports/` 디렉토리 폐기. (Hexagonal 컨벤션·CLAUDE.md와 일치)
+- `MemberVerify.position` 필드 제거 — 시스템 구현에서 사용 안 함이 확인되어 모델에서 빼고, 테스트는 extra-field 거부 검증으로 교체.
 
 ### Notes
 
