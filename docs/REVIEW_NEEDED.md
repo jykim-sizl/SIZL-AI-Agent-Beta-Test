@@ -2,14 +2,12 @@
 
 `feat/phase1-schemas-and-ports` 브랜치 작업 중 내린 결정 가운데, 시니어 리뷰가 필요한 항목.
 
-## 1. Port 위치: `services/*` 대신 `adapters/ports/`
+## 1. ~~Port 위치~~ ✅ **해소 (2026-05-26)**
 
-사용자 작업 명세에는 `apps/api/src/adapters/ports/`로 지정되어 있어 그대로 따랐다. 그러나:
+ADR 채택 후 `src/services/<domain>/port.py`로 이동 완료. `adapters/ports/` 폐기.
 
-- `CLAUDE.md` 아키텍처 섹션은 "GitHubPort, LLMPort, SheetPort, NotifierPort live alongside the services that consume them" 즉 `services/<domain>/` 안에 ABC를 두라고 명시.
-- Notion Tasks v2의 "Service 인터페이스 정의" 체크리스트도 `services/` 내부 4폴더 생성으로 기록.
-
-**리뷰 포인트:** Hexagonal Ports & Adapters 원칙상 둘 다 가능. 사용자 명세 우선이지만 다른 문서와 정합성 맞출지 결정 필요.
+- ADR: Notion DB "의사결정 로그(ADR)" — "Port ABC는 services/<domain>/port.py에 위치 (도메인 주도)"
+- 변경 커밋: `da11ddc refactor(ports): move Port ABCs into services/<domain>/port.py`
 
 ## 2. SheetPort에서 `verify_member` 제거 → `MemberPort` 신설
 
@@ -21,21 +19,18 @@
 
 **리뷰 포인트:** MemberPort + ExcelMemberAdapter 도입 시점·시그니처 확정 필요.
 
-## 3. `BugReport.test_environment` 단일 `str`
+## 3. ~~`BugReport.test_environment` 단일 `str`~~ ✅ **해소 (2026-05-26)**
 
-PRD A-4는 "OS, 브라우저, 디바이스, 네트워크 필수 입력. 일부는 자동 감지·수정 가능"이라고 명시. 본 작업에서는 사용자 명세의 `test_environment` 단일 필드를 단순 `str`로 받도록 했다.
+사용자 결정: PRD에서 명시한 환경 정보(OS·브라우저·디바이스·네트워크)는 폼에서 자동 수집되어 이슈 본문에만 표시. **Google Sheets 컬럼으로는 들어가지 않음** — 개발자 디버깅 정보 용도.
 
-**리뷰 포인트:** 폼 단계에서 4개 필드로 분리 입력받아 백엔드에서 단일 string으로 합칠지, 또는 `TestEnvironment` 서브모델을 만들지. 후자라면 시트의 어느 컬럼에 들어가는지도 결정 필요.
+현재 구현(단일 `str`) 그대로 유지. 폼 단계에서 자동 감지된 값을 단일 텍스트로 합쳐 백엔드에 전달.
 
-## 4. `MemberVerify.position` Optional 처리
+## 4. ~~`MemberVerify.position` Optional 처리~~ ✅ **해소 (2026-05-26)**
 
-- PRD v4.0: Members 컬럼은 `이메일, 이름, 팀, 직급` 4종.
-- `CLAUDE.md`: "Schema: 이름 / 팀 / 이메일 (no 직급 in v4.1)" — v4.1에서 직급 제거 표기.
-- 사용자 명세: `position` 필드 포함.
+사용자 결정: position(직급)은 Members.xlsx에만 존재하는 메타데이터이고 시스템 구현에서 사용할 일 없음. **MemberVerify에서 제거**.
 
-호환성 차원에서 `position: str | None = None`로 두었음.
-
-**리뷰 포인트:** v4.1 적용 여부와 시점, 직급이 향후에도 필요한지 확정.
+- 변경 커밋: `28b0527 refactor(models): drop MemberVerify.position field`
+- 테스트는 "extra field 거부" 케이스로 교체해 `extra=forbid` 정책을 명시적으로 검증.
 
 ## 5. `Severity` 라벨 범위 P1~P4
 
@@ -57,9 +52,10 @@ ADR > PRD 원칙에 따라 P1~P4로 구현. **리뷰 포인트:** P4의 운영 �
 
 ---
 
-## 빠른 결정 요청
+## 빠른 결정 요청 (남은 항목)
 
-위 6개 중 가장 시급한 결정 순서 (작업 흐름 영향도 기준):
-1. **#2 MemberPort 신설** — W1 후반의 폼 라우트(`POST /issues`) 멤버 검증 구현 시 즉시 영향.
-2. **#3 test_environment 구조** — 폼 화면(W2-W3) 설계에 영향.
-3. 나머지는 기능에 미치는 영향 적음 — W2 진행 중 자연스럽게 결정 가능.
+해소된 #1·#3·#4 외에 작업 흐름에 영향을 주는 순서:
+1. **#2 MemberPort 신설** — W1 후반의 폼 라우트(`POST /issues`) 멤버 검증 구현 시 즉시 영향. 우선 결정 필요.
+2. **#5 Severity P1~P4** — 라벨 운영 정책 (P4의 의미 명문화) 정도. W3까지 미뤄도 됨.
+3. **#6 Dummy vs NoOpLLMProvider 명명** — W3 LLM 구현 시 결정.
+4. **#7 CHANGELOG 위치** — apps/web 추가 시점에 재검토.
