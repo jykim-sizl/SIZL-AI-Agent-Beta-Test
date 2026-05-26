@@ -30,5 +30,20 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check src/ tests/
 
+      - name: Typecheck (mypy)
+        run: uv run mypy src/
+
       - name: Test (pytest)
         run: uv run pytest tests/ -v
+
+  docker:
+    name: API · docker build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t sizl-beta-api .
