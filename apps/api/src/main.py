@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.health import router as health_router
+from src.api.webhooks import router as webhooks_router
 from src.core.config import settings
 from src.core.logging import setup_logging
 
@@ -21,3 +22,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(webhooks_router)
