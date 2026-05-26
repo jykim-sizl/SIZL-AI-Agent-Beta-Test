@@ -2,6 +2,7 @@ import hashlib
 import hmac
 
 from fastapi.testclient import TestClient
+from structlog.testing import capture_logs
 
 from src.core.security import verify_github_signature
 from src.main import app
@@ -38,6 +39,26 @@ def test_tampered_body_rejected() -> None:
     sig = _sign(b'{"a":1}')
     resp = client.post("/webhooks", content=b'{"a":2}', headers={"X-Hub-Signature-256": sig})
     assert resp.status_code == 401
+
+
+def test_event_extracted_and_logged() -> None:
+    # 유효 서명 + issues/opened 이벤트 → 200 수락, 이벤트 종류·action이 로그에 남는다.
+    body = b'{"action":"opened","issue":{"number":7}}'
+    with capture_logs() as logs:
+        resp = client.post(
+            "/webhooks",
+            content=body,
+            headers={
+                "X-Hub-Signature-256": _sign(body),
+                "X-GitHub-Event": "issues",
+                "X-GitHub-Delivery": "delivery-123",
+            },
+        )
+    assert resp.status_code == 200
+    entry = next(e for e in logs if e["event"] == "github_webhook_received")
+    assert entry["event_type"] == "issues"
+    assert entry["action"] == "opened"
+    assert entry["delivery"] == "delivery-123"
 
 
 def test_verify_function_unit() -> None:
