@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class SheetPort(ABC):
@@ -12,10 +13,10 @@ class SheetPort(ABC):
     """
 
     @abstractmethod
-    def append_bug(self, row: dict) -> None: ...
+    def append_bug(self, row: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def append_enhancement(self, row: dict) -> None: ...
+    def append_enhancement(self, row: dict[str, Any]) -> None: ...
 
     @abstractmethod
     def update_pr_status(self, issue_number: int, status: str) -> None: ...
