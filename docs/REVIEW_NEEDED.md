@@ -32,30 +32,57 @@ ADR 채택 후 `src/services/<domain>/port.py`로 이동 완료. `adapters/ports
 - 변경 커밋: `28b0527 refactor(models): drop MemberVerify.position field`
 - 테스트는 "extra field 거부" 케이스로 교체해 `extra=forbid` 정책을 명시적으로 검증.
 
-## 5. `Severity` 라벨 범위 P1~P4
+## 5. Severity 라벨 범위 P1~P4 ✅ **해소 (2026-05-26)**
 
-- PRD §4.1: "P1~P3" 기준만 정의.
-- Notion ADR "GitHub 라벨 세트를 bug·enhancement·priority:P1∼P4의 6개로 최소화": **P1~P4**.
+- PRD v4.1로 minor 패치하여 §4.1.2에 Severity 라벨을 P1~P4로 명시.
+- 운영 정책(LLM 분석 실행 여부, SLA 등)은 PRD에 직접 명시하지 않고 
+  `docs/operations/severity_policy.md`로 분리. 운영 정책 변경 시 
+  PRD 버전 업이 발생하지 않도록 위임 구조 채택.
+- PRD v4.1에서 §4.1을 "FR 우선순위(§4.1.1)"와 "이슈 Severity(§4.1.2)"로 
+  분리하여 동일 표기(P1~P3)의 모호성 제거.
 
-ADR > PRD 원칙에 따라 P1~P4로 구현. **리뷰 포인트:** P4의 운영 의미(예: nice-to-have, 백로그)를 PRD/운영 문서에 명문화할 필요.
+**구현 영향:** 
+B-3(LLM 분석 제외), B-4(분석 PR 제외)에 P4 분기가 추가됨. W3 LLM 어댑터 
+구현 시 services/issue/ 레이어에서 severity==P4 분기 처리 필요.
 
-## 6. Dummy(NotImplementedError) vs ADR-002 NoOpLLMProvider
+## 6. Dummy(NotImplementedError) vs ADR NoOpLLMProvider ✅ **해소 (2026-05-26)**
 
-- 본 작업의 `DummyLLMAdapter`는 **테스트 stub**: 호출 시 즉시 `NotImplementedError("W2에서 구현")` → 실제 호출 경로에서 빠르게 실패시켜 W2 구현 누락을 잡는 용도.
-- ADR-002 NoOpLLMProvider는 **운영용 폴백**: 키 미설정 시 PRD B-6 폴백 경로로 자연스럽게 흐르도록 "LLM 미설정" 사유를 반환.
+명명과 도입 시점 결정:
+- `DummyLLMAdapter`: 현 이름 유지. W2 종료 시 `tests/` 또는 
+  `tests/stubs/`로 이동하여 **테스트 전용**임을 명확히 한다.
+- `NoOpLLMProvider`: W3 시작 시 첫 PR(LLM 어댑터 도입)에서 
+  `RealLLMProvider`와 함께 신설. ADR "LLM 후순위화"의 폴백 시나리오 구현체.
+- DI 분기는 `core/container.py` 또는 FastAPI Depends에서 
+  `settings.ANTHROPIC_API_KEY` 유무에 따라 결정.
 
-두 컴포넌트는 역할이 다르므로 공존해야 함. **리뷰 포인트:** 어느 시점에 NoOpLLMProvider를 도입할지, Dummy와 어떻게 구분 명명할지.
+W3 첫 PR 제목 권장: 
+`feat(llm): add RealLLMProvider and NoOpLLMProvider fallback`
 
-## 7. CHANGELOG.md를 모노레포 루트에 둠
+## 7. CHANGELOG.md 위치 ✅ **해소 (2026-05-26)**
 
-`apps/api/CHANGELOG.md`가 아니라 `/CHANGELOG.md`로 작성. 추후 `apps/web/`이 추가되면 별도 CHANGELOG로 분리할지 검토 필요.
+`apps/api/CHANGELOG.md`로 이동. 모노레포 표준 컨벤션(앱별 CHANGELOG) 적용.
+
+- `apps/web/` 추가 시 별도 `apps/web/CHANGELOG.md` 신설.
+- 인프라/모노레포 자체 변경이 누적되면 추후 루트 CHANGELOG 도입 재검토.
+
+## 8. P4 자동 처리 제외 분기 ⏳ **W3 구현 시 반영**
+
+PRD v4.1 B-3, B-4 변경에 따라 P4 이슈는 LLM 분석 및 분석 PR 생성 
+대상에서 제외된다.
+
+구현 위치 후보:
+- `services/issue/`: severity==P4 분기 → 분석 PR 생성 스킵
+- `services/llm/`: P4 호출 자체를 차단할지, 호출은 하되 PR만 안 만들지 결정 필요
+
+**권장:** services/issue/ 레이어에서 분기 (LLM 어댑터는 호출되면 
+항상 동작하도록 단순화 — 운영 정책 변경 시 issue 레이어만 수정).
 
 ---
 
 ## 빠른 결정 요청 (남은 항목)
 
-해소된 #1·#3·#4 외에 작업 흐름에 영향을 주는 순서:
-1. **#2 MemberPort 신설** — W1 후반의 폼 라우트(`POST /issues`) 멤버 검증 구현 시 즉시 영향. 우선 결정 필요.
-2. **#5 Severity P1~P4** — 라벨 운영 정책 (P4의 의미 명문화) 정도. W3까지 미뤄도 됨.
-3. **#6 Dummy vs NoOpLLMProvider 명명** — W3 LLM 구현 시 결정.
-4. **#7 CHANGELOG 위치** — apps/web 추가 시점에 재검토.
+해소된 #1, #3, #4, #5, #6, #7 외 작업 흐름 영향 순서:
+
+1. **#2 MemberPort 신설** — W1 후반의 폼 라우트(`POST /issues`) 
+   멤버 검증 구현 시 즉시 영향. 우선 결정 필요.
+2. **#8 P4 자동 처리 제외 분기** — W3 LLM 어댑터 구현 시 함께 반영.
