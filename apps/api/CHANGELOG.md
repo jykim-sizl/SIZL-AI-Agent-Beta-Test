@@ -1,3 +1,8 @@
+# apps/api CHANGELOG
+
+본 파일은 Backend(`apps/api/`) 패키지의 변경 이력만 추적합니다.
+Frontend(`apps/web/`)와 인프라 변경은 별도 CHANGELOG 또는 루트에서 관리합니다.
+
 # Changelog
 
 이 프로젝트의 주요 변경 사항을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르고, 버저닝은 [SemVer](https://semver.org/lang/ko/)를 사용합니다.
