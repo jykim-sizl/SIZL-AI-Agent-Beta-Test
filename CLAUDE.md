@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository State
 
-This is the **monorepo for the SIZL Agentic Brain Beta Test Automation Tool**. The repo is mid-transition: design docs in `docs/` describe the full system, while `apps/api/` currently holds the Phase 0 scaffold (FastAPI app + structure, no business logic yet). `apps/web/` and `packages/` are reserved but not populated.
+This is the **monorepo for the SIZL Agentic Brain Beta Test Automation Tool**. The repo is mid-transition: design docs in `docs/` describe the full system, while `apps/api/` currently holds the Phase 1 (W1) skeleton: FastAPI app, Pydantic schemas, Port ABCs + dummy adapters, and a signature-verifying `POST /webhooks` receiver (HMAC-SHA256 + event logging). Issue-creation / Sheets / LLM business logic is W2+. `apps/web/` and `packages/` are reserved but not populated.
 
-Target GitHub repo where issues/PRs are created by automation: `Sizl-Neolab/SIZL-Agentic-Brain-Issue-Track` (separate from this repo).
+The automation uses **two different GitHub repos**: **Issues** are created in **this repo** (`jykim-sizl/SIZL-AI-Agent-Beta-Test`) — the GitHub App is installed here and `issues` webhooks fire from here. **PRs / empty branches** target the shared team repo **`Neolab-test/test`**, which is what `.env`'s `GITHUB_TARGET_REPO` points to. `config.py`'s default `github_target_repo` (`Sizl-Neolab/SIZL-Agentic-Brain-Issue-Track`) is just a placeholder overridden by `.env`. (When testing webhooks, create the test issue in *this* repo, not the PR target.)
 
 The current PRD is `docs/PRD_v4_0.*`; v3.0 and earlier are in `docs/history/`.
 
@@ -77,6 +77,7 @@ Cross-cutting: `core/` (config, logging, exceptions), `models/` (Pydantic DTOs).
 - **Four sheets, not one Raw Issues.** Per ADR-003: `Raw Bugs`, `Raw Enhancements`, `Daily Snapshot`, `Dashboard`. The `SheetPort` exposes `append_bug` / `append_enhancement` separately rather than a single `append_issue`.
 - **Phase A vs Phase B deployment.** Phase A (current, through W3) = local docker / `pnpm dev`. Phase B (W3+) = Cloud Run + Vercel. Don't add Cloud Run-specific config to Phase A code paths. (ADR-001)
 - **Anthropic API key is not yet issued.** W3 LLM work must run with a stub `LLMPort` implementation; don't gate work on the real key.
+- **`main` is branch-protected.** PRs into `main` must pass two required status checks — `API · ruff + pytest` and `API · docker build` (`.github/workflows/ci.yml` runs ruff + mypy + pytest + docker build). Renaming a CI job breaks the required-check mapping — update the protection contexts (`PUT /repos/.../branches/main/protection`) too. PRs are squash-merged.
 
 ### Core services
 
