@@ -60,34 +60,22 @@ def test_enhancement_request_minimal_valid() -> None:
     assert req.area == "Dashboard"
 
 
-def test_member_verify_is_eligible_when_active() -> None:
+def test_member_verify_holds_email_name_team() -> None:
     m = MemberVerify(
         email="alice@sizl.co.kr",
         name="Alice",
         team="QA",
-        is_active=True,
     )
-    assert m.is_eligible() is True
-
-
-def test_member_verify_not_eligible_when_inactive() -> None:
-    m = MemberVerify(
-        email="ex@sizl.co.kr",
-        name="Ex",
-        team="QA",
-        is_active=False,
-    )
-    assert m.is_eligible() is False
+    assert (m.email, m.name, m.team) == ("alice@sizl.co.kr", "Alice", "QA")
 
 
 def test_member_verify_rejects_unknown_field() -> None:
-    """position 등 시스템에서 사용하지 않는 필드는 거부 (extra=forbid)."""
+    """position·is_active 등 시스템에서 쓰지 않는 필드는 거부 (extra=forbid)."""
     with pytest.raises(ValidationError):
         MemberVerify(
             email="a@b.co",
             name="A",
             team="T",
-            position="Engineer",
             is_active=True,
         )
 

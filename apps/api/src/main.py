@@ -5,9 +5,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from src.api.health import router as health_router
+from src.api.issues import router as issues_router
 from src.api.webhooks import router as webhooks_router
 from src.core.config import settings
-from src.core.exceptions import WebhookVerificationError
+from src.core.exceptions import MemberNotRegisteredError, WebhookVerificationError
 from src.core.logging import setup_logging
 
 
@@ -31,5 +32,13 @@ async def webhook_verification_error_handler(
     return JSONResponse(status_code=401, content={"detail": str(exc)})
 
 
+@app.exception_handler(MemberNotRegisteredError)
+async def member_not_registered_error_handler(
+    request: Request, exc: MemberNotRegisteredError
+) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+
 app.include_router(health_router)
 app.include_router(webhooks_router)
+app.include_router(issues_router)

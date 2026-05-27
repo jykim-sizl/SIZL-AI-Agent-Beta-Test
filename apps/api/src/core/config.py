@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Slack
     slack_webhook_url: str
 
+    # Members (로컬 xlsx 검증, ADR-001 / PRD v4.0)
+    members_xlsx_path: str = "data/Members.xlsx"
+
     # App
     app_env: str = "development"
     log_level: str = "INFO"
