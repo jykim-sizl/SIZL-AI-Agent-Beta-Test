@@ -35,6 +35,24 @@ class ExcelMemberAdapter(MemberPort):
         self._ensure_loaded()
         return self._members.get(self._normalize(email))
 
+    def add(self, member: MemberVerify) -> None:
+        # 헤더 컬럼 위치를 찾아 한 행 append 후 저장. 캐시 무효화로 다음 verify가 재로딩.
+        workbook = openpyxl.load_workbook(self._path)
+        try:
+            worksheet = workbook.active
+            if worksheet is None:
+                raise ValueError("Members.xlsx 활성 시트가 없습니다.")
+            header = [str(c.value).strip() if c.value is not None else "" for c in worksheet[1]]
+            row: list[str] = [""] * len(header)
+            row[header.index("이름")] = member.name
+            row[header.index("이메일")] = member.email
+            row[header.index("팀")] = member.team
+            worksheet.append(row)
+            workbook.save(self._path)
+        finally:
+            workbook.close()
+        self._loaded_at = None
+
     @staticmethod
     def _normalize(email: str) -> str:
         return email.strip().lower()

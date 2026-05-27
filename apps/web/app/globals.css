@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
+/* SIZL Beta Feedback System — design tokens (ported from Figma Make) */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #e9ebef;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input-background: #f9fafb;
+  --ring: #2563eb;
+
+  /* SIZL surface + semantic */
+  --sizl-surface: #f9fafb;
+  --sizl-success: #10b981;
+  --sizl-warning: #f59e0b;
+  --sizl-danger: #ef4444;
+
+  /* Priority (P1~P4) */
+  --priority-p1-bg: #fee2e2;
+  --priority-p1-text: #991b1b;
+  --priority-p2-bg: #ffedd5;
+  --priority-p2-text: #9a3412;
+  --priority-p3-bg: #fef3c7;
+  --priority-p3-text: #92400e;
+  --priority-p4-bg: #f3f4f6;
+  --priority-p4-text: #4b5563;
+
+  /* Status */
+  --status-open: #dc2626;
+  --status-progress: #ea580c;
+  --status-completed: #059669;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+
+  --color-sizl-surface: var(--sizl-surface);
+  --color-sizl-success: var(--sizl-success);
+  --color-sizl-warning: var(--sizl-warning);
+  --color-sizl-danger: var(--sizl-danger);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
+  background: var(--sizl-surface);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

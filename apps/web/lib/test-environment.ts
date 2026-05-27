@@ -31,3 +31,32 @@ function matchVersion(ua: string, re: RegExp, name: string): string {
   const m = ua.match(re);
   return m ? `${name} ${m[1]}` : name;
 }
+
+export interface TestEnv {
+  os: string;
+  browser: string;
+  device: string;
+  network: string;
+}
+
+// OS / 브라우저 / 기기 / 네트워크를 개별 필드로 자동 감지한다.
+export function detectEnv(): TestEnv {
+  if (typeof window === "undefined") {
+    return { os: "", browser: "", device: "", network: "" };
+  }
+  const ua = navigator.userAgent;
+  // 일부 브라우저에만 있는 Network Information API
+  const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
+  return {
+    os: detectOS(ua),
+    browser: detectBrowser(ua),
+    device: detectDevice(ua),
+    network: conn?.effectiveType ? conn.effectiveType.toUpperCase() : "Unknown",
+  };
+}
+
+function detectDevice(ua: string): string {
+  if (/iPad|Tablet/.test(ua)) return "Tablet";
+  if (/(iPhone|Android|Mobile)/.test(ua)) return "Mobile";
+  return "Desktop";
+}

@@ -11,9 +11,7 @@ def setup_logging(log_level: str = "INFO") -> None:
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(log_level)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(log_level)),
         logger_factory=structlog.PrintLoggerFactory(),
     )
 
