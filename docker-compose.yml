@@ -1,0 +1,16 @@
+# Phase A 로컬 실행용 (ADR-001). 프로덕션 배포(Phase B, Cloud Run)에는 사용하지 않음.
+# 사용법: 루트에서 `docker compose up` → http://localhost:8000/health
+services:
+  api:
+    build:
+      context: ./apps/api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./apps/api/.env
+    volumes:
+      # 소스 마운트 + --reload 로 핫 리로드 (이미지 재빌드 없이 코드 변경 반영)
+      - ./apps/api/src:/app/src
+      # Members.xlsx 로컬 검증 데이터 (config 기본값 data/Members.xlsx)
+      - ./apps/api/data:/app/data
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]
