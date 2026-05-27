@@ -11,6 +11,7 @@ from src.adapters.impl import (
 from src.models.analysis_result import AnalysisResult
 from src.models.bug_report import BugReport, Severity
 from src.models.enhancement_request import EnhancementRequest
+from src.models.issue_draft import IssueDraft
 from src.services.github import GitHubPort
 from src.services.issue import IssuePort
 from src.services.llm import LLMPort
@@ -75,10 +76,9 @@ def test_dummy_sheet_raises_not_implemented() -> None:
 
 def test_dummy_github_raises_not_implemented() -> None:
     adapter = DummyGitHubAdapter()
+    draft = IssueDraft(title="t", body="b", labels=["bug"])
     with pytest.raises(NotImplementedError):
-        adapter.create_issue(_bug())
-    with pytest.raises(NotImplementedError):
-        adapter.create_issue(_enh())
+        adapter.create_issue(draft)
     with pytest.raises(NotImplementedError):
         adapter.create_empty_pr(1, _analysis())
     with pytest.raises(NotImplementedError):
