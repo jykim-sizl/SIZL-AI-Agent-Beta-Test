@@ -51,11 +51,30 @@ def test_port_is_abstract(port: type) -> None:
 
 
 def test_dummy_llm_raises_not_implemented() -> None:
+    # analyze 는 여전히 미구현(W3 대기). is_healthy 와 summarize_pr_close 는
+    # LLM 키가 없을 때의 정상 fallback 으로 동작 → False / None 반환.
+    from src.services.llm.port import PRCloseContext
+
     adapter = DummyLLMAdapter()
     with pytest.raises(NotImplementedError):
         adapter.analyze(_bug())
-    with pytest.raises(NotImplementedError):
-        adapter.is_healthy()
+    assert adapter.is_healthy() is False
+    assert (
+        adapter.summarize_pr_close(
+            PRCloseContext(
+                issue_number=1,
+                issue_title="t",
+                issue_body="b",
+                pr_number=2,
+                pr_title="pt",
+                pr_body="pb",
+                pr_url="https://x/2",
+                merged=True,
+                merge_commit_sha="abc",
+            )
+        )
+        is None
+    )
 
 
 def test_dummy_sheet_raises_not_implemented() -> None:
