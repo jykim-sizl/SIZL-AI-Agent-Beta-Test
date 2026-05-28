@@ -189,7 +189,7 @@ export default function BugReportPage() {
       expectedOutput: orUndef(form.expectedOutput),
       additionalComments: orUndef(form.additionalComments),
       errorLog: orUndef(errorLog),
-      attachments: attachments.map((a) => a.name),
+      attachments: attachments.map((a) => ({ name: a.name, dataUrl: a.dataUrl })),
     };
     setSubmitError("");
     setSubmitting(true);

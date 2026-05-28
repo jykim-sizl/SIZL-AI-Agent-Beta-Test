@@ -5,6 +5,8 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.alias_generators import to_camel
 
+from src.models.attachment import AttachmentInput
+
 
 class Severity(StrEnum):
     P1 = "P1"
@@ -53,4 +55,4 @@ class BugReport(BaseModel):
     expected_output: str | None = None
     additional_comments: str | None = None
     error_log: str | None = None
-    attachments: list[str] = Field(default_factory=list)  # 파일명 (업로드는 후속)
+    attachments: list[AttachmentInput] = Field(default_factory=list)

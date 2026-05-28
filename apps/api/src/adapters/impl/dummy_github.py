@@ -11,5 +11,8 @@ class DummyGitHubAdapter(GitHubPort):
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:
         raise NotImplementedError("W2에서 구현")
 
+    def upload_image(self, filename: str, content: bytes) -> str:
+        raise NotImplementedError("W2에서 구현")
+
     def close_issue(self, issue_number: int) -> None:
         raise NotImplementedError("W2에서 구현")

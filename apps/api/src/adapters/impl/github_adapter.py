@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
-from github import Auth, GithubIntegration
+from github import Auth, GithubException, GithubIntegration
 from github.Repository import Repository
 
 from src.core.logging import logger
@@ -58,6 +59,26 @@ class GitHubAppAdapter(GitHubPort):
         pull = repo.create_pull(title=title, body=body, base=default, head=branch)
         logger.info("github_pr_created", number=pull.number, issue=issue_number, repo=self._pr_repo)
         return pull.number
+
+    def upload_image(self, filename: str, content: bytes) -> str:
+        # 공개 issue_repo의 'assets' 브랜치에 커밋 → raw URL 반환(이슈 본문에서 렌더).
+        repo = self._repo(self._issue_repo)
+        branch = "assets"
+        try:
+            repo.get_branch(branch)
+        except GithubException:
+            base_sha = repo.get_branch(repo.default_branch).commit.sha
+            repo.create_git_ref(ref=f"refs/heads/{branch}", sha=base_sha)
+
+        safe = filename.replace("/", "_").strip() or "image.png"
+        path = f"issue-assets/{uuid.uuid4().hex}-{safe}"
+        repo.create_file(
+            path=path, message=f"chore: upload asset {safe}", content=content, branch=branch
+        )
+        owner, name = self._issue_repo.split("/", 1)
+        url = f"https://raw.githubusercontent.com/{owner}/{name}/{branch}/{path}"
+        logger.info("github_image_uploaded", path=path, repo=self._issue_repo)
+        return url
 
     def close_issue(self, issue_number: int) -> None:
         self._repo(self._issue_repo).get_issue(issue_number).edit(state="closed")

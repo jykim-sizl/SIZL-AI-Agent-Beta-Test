@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.models.attachment import AttachmentInput
 from src.models.bug_report import BugReport, Severity
 from src.models.enhancement_request import EnhancementRequest
 from src.models.issue_draft import IssueDraft
@@ -23,6 +24,9 @@ class RecordingGitHub(GitHubPort):
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
 
+    def upload_image(self, filename: str, content: bytes) -> str:
+        return f"https://example.com/{filename}"
+
     def close_issue(self, issue_number: int) -> None:  # pragma: no cover
         raise NotImplementedError
 
@@ -42,7 +46,7 @@ def _bug(severity: Severity = Severity.P2) -> BugReport:
         actual_behavior="검색 결과가 비어 있음",
         expected_behavior="결과가 표시되어야 함",
         reproduction_steps=["검색", "엔터"],
-        attachments=["shot.png"],
+        attachments=[AttachmentInput(name="shot.png")],
     )
 
 
@@ -84,6 +88,18 @@ def test_bug_body_contains_sections_and_reporter() -> None:
         "shot.png",  # 첨부 파일명 포함
     ):
         assert fragment in draft.body
+
+
+def test_image_attachment_embedded_in_body() -> None:
+    report = _bug().model_copy(
+        update={
+            "attachments": [
+                AttachmentInput(name="cap.png", data_url="data:image/png;base64,aGVsbG8=")
+            ]
+        }
+    )
+    draft = IssueService(RecordingGitHub()).build_draft(report, MEMBER)
+    assert "![cap.png](https://example.com/cap.png)" in draft.body
 
 
 def test_enhancement_label_is_enhancement_only() -> None:

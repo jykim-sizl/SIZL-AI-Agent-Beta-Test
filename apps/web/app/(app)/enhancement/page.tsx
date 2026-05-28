@@ -135,7 +135,7 @@ export default function EnhancementPage() {
       expectedBehavior: orUndef(form.expectedBehavior),
       rationale: orUndef(form.rationale),
       additionalComments: orUndef(form.additionalComments),
-      attachments: attachments.map((a) => a.name),
+      attachments: attachments.map((a) => ({ name: a.name, dataUrl: a.dataUrl })),
     };
     setSubmitError("");
     setSubmitting(true);

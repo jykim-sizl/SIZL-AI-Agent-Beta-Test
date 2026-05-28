@@ -5,6 +5,8 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.alias_generators import to_camel
 
+from src.models.attachment import AttachmentInput
+
 
 class Priority(StrEnum):
     P1 = "P1"
@@ -41,4 +43,4 @@ class EnhancementRequest(BaseModel):
     expected_behavior: str | None = None
     rationale: str | None = None
     additional_comments: str | None = None
-    attachments: list[str] = Field(default_factory=list)
+    attachments: list[AttachmentInput] = Field(default_factory=list)

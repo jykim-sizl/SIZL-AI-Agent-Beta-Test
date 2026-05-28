@@ -21,4 +21,9 @@ class GitHubPort(ABC):
         ...
 
     @abstractmethod
+    def upload_image(self, filename: str, content: bytes) -> str:
+        """이미지를 공개 repo에 올리고 이슈 본문에 넣을 raw URL을 반환."""
+        ...
+
+    @abstractmethod
     def close_issue(self, issue_number: int) -> None: ...

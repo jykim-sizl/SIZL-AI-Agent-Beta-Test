@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+
+from src.models.attachment import AttachmentInput
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
 from src.models.issue_draft import IssueDraft
@@ -46,7 +49,7 @@ class IssueService:
             ("## 예상 출력", report.expected_output),
             ("## 테스트 환경", env or None),
             ("## 콘솔/에러 로그", report.error_log),
-            ("## 첨부", "\n".join(report.attachments) or None),
+            ("## 첨부", self._attachments_md(report.attachments)),
             ("## 추가 의견", report.additional_comments),
         ]
         footer = [
@@ -73,7 +76,7 @@ class IssueService:
             ("## 현재 동작", report.current_behavior),
             ("## 기대 동작", report.expected_behavior),
             ("## 기대 효과", report.rationale),
-            ("## 첨부", "\n".join(report.attachments) or None),
+            ("## 첨부", self._attachments_md(report.attachments)),
             ("## 추가 의견", report.additional_comments),
         ]
         footer = [
@@ -87,6 +90,21 @@ class IssueService:
             body=body,
             labels=["enhancement"],
         )
+
+    def _attachments_md(self, attachments: list[AttachmentInput]) -> str | None:
+        # 이미지(data_url)는 업로드 후 ![](url)로 본문에 삽입, 그 외는 파일명만 표기.
+        if not attachments:
+            return None
+        lines: list[str] = []
+        for att in attachments:
+            data_url = att.data_url or ""
+            if data_url.startswith("data:image") and "," in data_url:
+                content = base64.b64decode(data_url.split(",", 1)[1])
+                url = self._github.upload_image(att.name, content)
+                lines.append(f"![{att.name}]({url})")
+            else:
+                lines.append(f"- {att.name}")
+        return "\n".join(lines)
 
     @staticmethod
     def _compose(sections: list[tuple[str, str | None]], footer: list[str]) -> str:

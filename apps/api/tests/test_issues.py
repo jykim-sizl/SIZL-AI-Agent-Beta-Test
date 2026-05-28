@@ -35,6 +35,9 @@ class FakeGitHub(GitHubPort):
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
 
+    def upload_image(self, filename: str, content: bytes) -> str:  # pragma: no cover
+        return f"https://example.com/{filename}"
+
     def close_issue(self, issue_number: int) -> None:  # pragma: no cover
         raise NotImplementedError
 

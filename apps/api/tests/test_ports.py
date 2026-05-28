@@ -74,6 +74,8 @@ def test_dummy_github_raises_not_implemented() -> None:
     with pytest.raises(NotImplementedError):
         adapter.create_empty_pr(1, "title", "body")
     with pytest.raises(NotImplementedError):
+        adapter.upload_image("a.png", b"x")
+    with pytest.raises(NotImplementedError):
         adapter.close_issue(1)
 
 
