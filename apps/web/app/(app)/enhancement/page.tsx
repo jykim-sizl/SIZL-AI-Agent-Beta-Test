@@ -109,7 +109,19 @@ export default function EnhancementPage() {
       e.testAreaEtc = "관련 영역을 직접 입력해주세요.";
     if (!form.featureToImprove.trim()) e.featureToImprove = "개선할 기능을 입력해주세요.";
     setErrors(e);
-    return Object.keys(e).length === 0;
+    const firstId = Object.keys(e)[0];
+    if (firstId) {
+      // 다음 paint 후 첫 에러 필드로 스크롤·포커스.
+      requestAnimationFrame(() => {
+        const el = document.getElementById(firstId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          (el as HTMLInputElement).focus({ preventScroll: true });
+        }
+      });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
