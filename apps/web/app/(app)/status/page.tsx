@@ -8,6 +8,7 @@ import { DonutChart } from "@/components/donut-chart";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { fetchIssues } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
 // CSV/xlsx 다운로드는 구글 시트 export 로 위임 — STATUS_LABEL 은 더 이상 쓰지 않음.
@@ -253,7 +254,7 @@ export default function StatusPage() {
                 <th className="px-3 py-2 font-medium">우선순위</th>
                 <th className="px-3 py-2 font-medium">상태</th>
                 <th className="px-3 py-2 font-medium">제보자</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">등록일</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">등록 일시</th>
               </tr>
             </thead>
             <tbody>
@@ -270,7 +271,7 @@ export default function StatusPage() {
                   <td className="px-3 py-2"><PriorityBadge priority={issue.priority} /></td>
                   <td className="px-3 py-2"><StatusBadge status={issue.status} /></td>
                   <td className="px-3 py-2 text-gray-600">{issue.reporter}</td>
-                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{issue.createdAt}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDateTime(issue.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
