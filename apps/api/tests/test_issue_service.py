@@ -36,6 +36,7 @@ MEMBER = MemberVerify(email="jy_kim@sizl.co.kr", name="김정연", team="Neo Lab
 
 def _bug(severity: Severity = Severity.P2) -> BugReport:
     return BugReport(
+        title="제목 테스트",
         reporter_email="jy_kim@sizl.co.kr",
         test_account="qa@company.com",
         screen_url="https://app.example.com/search",
@@ -52,6 +53,7 @@ def _bug(severity: Severity = Severity.P2) -> BugReport:
 
 def _enh() -> EnhancementRequest:
     return EnhancementRequest(
+        title="제목 테스트",
         reporter_email="jy_kim@sizl.co.kr",
         screen_url="https://app.example.com/dashboard",
         area="Dashboard",
@@ -77,7 +79,8 @@ def test_bug_labels_include_bug_and_priority(severity: Severity, expected_label:
 
 def test_bug_body_contains_sections_and_reporter() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_bug(), MEMBER)
-    assert draft.title == "bug(Search): 검색 결과가 비어 있음"
+    # 제목은 폼의 'title' 필드 그대로 (영역 prefix 만 부착)
+    assert draft.title == "bug(Search): 제목 테스트"
     for fragment in (
         "## 발생 증상",
         "## 재현 절차",
@@ -105,14 +108,15 @@ def test_image_attachment_embedded_in_body() -> None:
 def test_enhancement_label_is_enhancement_only() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_enh(), MEMBER)
     assert draft.labels == ["enhancement"]
-    assert draft.title == "enhance(Dashboard): 팀별 필터 요청"
+    assert draft.title == "enhance(Dashboard): 제목 테스트"
     assert "## 개선할 기능" in draft.body
     assert "우선순위: P3" in draft.body
 
 
 def test_title_truncates_long_summary() -> None:
+    # 긴 제목은 _TITLE_MAX 로 잘림 (말줄임표 부착)
     long = "가" * 100
-    report = _bug().model_copy(update={"actual_behavior": long})
+    report = _bug().model_copy(update={"title": long})
     draft = IssueService(RecordingGitHub()).build_draft(report, MEMBER)
     assert draft.title.endswith("…")
     assert len(draft.title) < len(f"bug(Search): {long}")

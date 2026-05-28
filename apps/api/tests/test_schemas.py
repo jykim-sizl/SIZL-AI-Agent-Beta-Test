@@ -9,6 +9,7 @@ from src.models.enhancement_request import EnhancementRequest, Priority
 from src.models.member_verify import MemberVerify
 
 VALID_BUG = {
+    "title": "제목 테스트",
     "reporter_email": "alice@sizl.co.kr",
     "test_account": "qa@company.com",
     "screen_url": "https://app.example.com/search",
@@ -29,6 +30,7 @@ def test_bug_report_accepts_valid_payload() -> None:
 def test_bug_report_accepts_camelcase_aliases() -> None:
     # 프론트가 보내는 camelCase 키를 그대로 수용한다.
     bug = BugReport(
+        title="제목 테스트",
         reporterEmail="alice@sizl.co.kr",
         screenUrl="https://app.example.com/x",
         area="Search",
@@ -65,6 +67,7 @@ def test_bug_report_rejects_extra_field() -> None:
 
 def test_enhancement_request_minimal_valid() -> None:
     req = EnhancementRequest(
+        title="제목 테스트",
         reporter_email="bob@sizl.co.kr",
         screen_url="https://app.example.com/dashboard",
         area="Dashboard",

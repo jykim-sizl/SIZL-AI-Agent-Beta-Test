@@ -32,6 +32,7 @@ const SEVERITIES = [
 const FREQUENCIES = ["항상", "가끔", "드물게"] as const;
 
 interface BugForm {
+  title: string;
   testAccount: string;
   screenUrl: string;
   accessTime: string;
@@ -55,6 +56,7 @@ interface BugForm {
 }
 
 const initialForm: BugForm = {
+  title: "",
   testAccount: "",
   screenUrl: "",
   accessTime: "",
@@ -133,7 +135,7 @@ export default function BugReportPage() {
 
   const completed = useMemo<Record<string, boolean>>(
     () => ({
-      summary: Boolean(form.screenUrl),
+      summary: Boolean(form.title && form.screenUrl),
       scenario: Boolean(form.detailedFeature || form.scenarioDescription),
       reproduction: form.reproductionSteps.some((s) => s.trim()),
       behavior: Boolean(form.expectedBehavior && form.actualBehavior),
@@ -146,6 +148,7 @@ export default function BugReportPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
+    if (!form.title.trim()) e.title = "제목을 입력해주세요.";
     if (!form.screenUrl.trim()) e.screenUrl = "발생 화면 URL을 입력해주세요.";
     else if (!/^https?:\/\//.test(form.screenUrl.trim()))
       e.screenUrl = "http(s):// 로 시작하는 URL을 입력해주세요.";
@@ -169,6 +172,7 @@ export default function BugReportPage() {
     // 백엔드 계약(camelCase) 에 맞춰 정리 — testArea→area, 빈 옵션 제외, 로그인 이메일=reporterEmail
     const payload = {
       reporterEmail: user.email,
+      title: form.title.trim(),
       testAccount: orUndef(form.testAccount),
       screenUrl: form.screenUrl,
       accessTime: orUndef(form.accessTime),
@@ -220,6 +224,10 @@ export default function BugReportPage() {
           <div className="flex flex-col gap-6">
             {/* 요약 */}
             <Section title="요약">
+              <FormField label="제목" htmlFor="title" required error={errors.title} hint="한 줄로 어떤 문제인지 요약해주세요. GitHub 이슈/시트 목록에 그대로 표시됩니다.">
+                <Input id="title" placeholder="예) 검색 결과가 간헐적으로 비어 있음" value={form.title} onChange={(e) => set("title", e.target.value)} />
+              </FormField>
+
               <FormField label="테스트 계정 (이메일)" htmlFor="testAccount" hint="선택 · 테스트에 사용한 계정. 로그인 화면 테스트처럼 계정이 없으면 비워두세요. (제보자 본인 정보는 로그인에서 확인됩니다)">
                 <Input id="testAccount" type="email" placeholder="test@company.com" value={form.testAccount} onChange={(e) => set("testAccount", e.target.value)} />
               </FormField>
@@ -369,6 +377,7 @@ export default function BugReportPage() {
               <button onClick={() => setShowPreview(false)} className="rounded p-2 hover:bg-gray-100" aria-label="닫기">✕</button>
             </div>
             <div className="mb-6 flex flex-col gap-2 rounded-lg bg-sizl-surface p-4 text-sm">
+              <div><strong>제목:</strong> {form.title || "-"}</div>
               <div><strong>테스트 계정:</strong> {form.testAccount || "-"}</div>
               <div><strong>발생 화면:</strong> {form.screenUrl || "-"}</div>
               <div><strong>심각도:</strong> {SEVERITIES.find((s) => s.value === form.severity)?.label}</div>

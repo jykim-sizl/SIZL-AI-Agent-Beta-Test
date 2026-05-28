@@ -132,6 +132,8 @@ class GoogleSheetAdapter(SheetPort):
             number = _parse_int(row.get(_ISSUE_COL, ""))
             if number is None:  # # github issue 없는 행(빈/운영자 행)은 건너뜀
                 continue
+            # 시트엔 '제목' 컬럼이 없으므로 발생 증상/세부 기능을 그대로 표시.
+            # (폼의 'title' 은 GitHub 이슈/PR 제목으로만 쓰이고 시트엔 저장하지 않음)
             if type_ == "bug":
                 title = row.get("발생 증상") or row.get("세부 기능") or "(제목 없음)"
                 status = _BUG_STATUS.get(row.get(_STATUS_COL, ""), "received")

@@ -29,6 +29,7 @@ const PRIORITIES = [
 ] as const;
 
 interface EnhForm {
+  title: string;
   testAccount: string;
   screenUrl: string;
   testArea: string;
@@ -46,6 +47,7 @@ interface EnhForm {
 }
 
 const initialForm: EnhForm = {
+  title: "",
   testAccount: "",
   screenUrl: "",
   testArea: "Research agent",
@@ -88,7 +90,7 @@ export default function EnhancementPage() {
 
   const completed = useMemo<Record<string, boolean>>(
     () => ({
-      summary: Boolean(form.screenUrl),
+      summary: Boolean(form.title && form.screenUrl),
       improvement: Boolean(form.featureToImprove || form.currentBehavior || form.expectedBehavior),
       impact: form.rationale.trim().length > 0,
       attachments: attachments.length > 0,
@@ -99,6 +101,7 @@ export default function EnhancementPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
+    if (!form.title.trim()) e.title = "제목을 입력해주세요.";
     if (!form.screenUrl.trim()) e.screenUrl = "관련 화면 URL을 입력해주세요.";
     else if (!/^https?:\/\//.test(form.screenUrl.trim()))
       e.screenUrl = "http(s):// 로 시작하는 URL을 입력해주세요.";
@@ -122,6 +125,7 @@ export default function EnhancementPage() {
     const orUndef = (v: string) => (v.trim() ? v : undefined);
     const payload = {
       reporterEmail: user.email,
+      title: form.title.trim(),
       testAccount: orUndef(form.testAccount),
       screenUrl: form.screenUrl,
       area: form.testArea === "기타" ? form.testAreaEtc : form.testArea,
@@ -163,6 +167,10 @@ export default function EnhancementPage() {
           <div className="flex flex-col gap-6">
             {/* 요약 */}
             <Section title="요약">
+              <FormField label="제목" htmlFor="title" required error={errors.title} hint="한 줄로 어떤 개선인지 요약해주세요. GitHub 이슈/시트 목록에 그대로 표시됩니다.">
+                <Input id="title" placeholder="예) 채팅 입력창에 Cmd+Enter 단축키 추가" value={form.title} onChange={(e) => set("title", e.target.value)} />
+              </FormField>
+
               <FormField label="테스트 계정 (이메일)" htmlFor="testAccount" hint="선택 · 테스트에 사용한 계정. 로그인 화면처럼 계정이 없으면 비워두세요. (제보자 본인 정보는 로그인에서 확인됩니다)">
                 <Input id="testAccount" type="email" placeholder="test@company.com" value={form.testAccount} onChange={(e) => set("testAccount", e.target.value)} />
               </FormField>
@@ -268,6 +276,7 @@ export default function EnhancementPage() {
               <button onClick={() => setShowPreview(false)} className="rounded p-2 hover:bg-gray-100" aria-label="닫기">✕</button>
             </div>
             <div className="mb-6 flex flex-col gap-2 rounded-lg bg-sizl-surface p-4 text-sm">
+              <div><strong>제목:</strong> {form.title || "-"}</div>
               <div><strong>테스트 계정:</strong> {form.testAccount || "-"}</div>
               <div><strong>관련 화면:</strong> {form.screenUrl || "-"}</div>
               <div><strong>우선순위:</strong> {form.priority}</div>
