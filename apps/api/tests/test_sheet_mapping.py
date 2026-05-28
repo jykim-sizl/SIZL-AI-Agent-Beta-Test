@@ -24,10 +24,12 @@ def test_bug_to_row_fills_auto_columns_only() -> None:
     assert row["우선순위"] == "P1"
     assert row["처리 상태"] == "접수"
     assert row["# github issue"] == "#142"
-    assert row["발생 화면"] == "https://app.example.com/x"
     assert row["테스트 계정"] == "qa@company.com"
-    # 운영자 수기 컬럼은 키 자체가 없어야 한다 (어댑터가 빈칸으로 두어 보존)
-    for operator_col in ("원인 유형", "원인 상세", "테스트 담당자", "조치 내용", "배포 여부"):
+    # 시트 미포함 항목(보고용 간소화)은 매핑에서 빠진다 — 이슈 본문엔 유지
+    for excluded in ("발생 화면", "테스트 시나리오"):
+        assert excluded not in row
+    # 운영자 수기 컬럼도 키 없음 (어댑터가 빈칸으로 두어 보존)
+    for operator_col in ("테스트 담당자", "조치 내용", "배포 여부"):
         assert operator_col not in row
 
 

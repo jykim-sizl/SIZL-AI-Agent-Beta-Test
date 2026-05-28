@@ -23,8 +23,6 @@ def bug_to_row(
         "테스트 계정": report.test_account or "",
         "테스트 영역": report.area,
         "세부 기능": report.detailed_feature or "",
-        "발생 화면": report.screen_url,
-        "테스트 시나리오": report.scenario_description or "",
         "발생 증상": report.actual_behavior or "",
         "발생 빈도": report.frequency or "",
         "우선순위": report.severity.value,
