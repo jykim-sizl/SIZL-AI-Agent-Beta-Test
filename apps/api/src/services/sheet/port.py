@@ -32,10 +32,24 @@ class SheetPort(ABC):
         pr_url: str | None = None,
         action_text: str | None = None,
     ) -> None:
-        """이슈 행의 처리 상태(+ PR 번호/링크, + '조치 내용')를 갱신.
+        """버그(Raw Issues 탭) 행의 처리 상태(+ PR 번호/링크, + '조치 내용')를 갱신.
 
         action_text 가 주어지면 '조치 내용' 컬럼에 기록한다.
         (CLAUDE.md 운영자 컬럼 보호 규칙 예외 — 사용자 결정: PR close 시 자동 코멘트
         텍스트를 시트에도 미러링. 운영자가 이후 덮어쓸 수 있음.)
+        """
+        ...
+
+    @abstractmethod
+    def update_enhancement_status(
+        self,
+        issue_number: int,
+        status: str,
+        action_text: str | None = None,
+    ) -> None:
+        """개선(Enhancement 탭) 행의 처리 상태(+ '조치 내용')를 갱신.
+
+        GitHub 이슈가 closed 되면 webhook 이 호출 — state_reason 으로
+        '검토완료 · 반영' / '검토완료 · 미반영' 매핑.
         """
         ...

@@ -44,6 +44,14 @@ class FakeSheet:
     ) -> None:
         self.status.append((issue_number, status, action_text))
 
+    def update_enhancement_status(
+        self,
+        issue_number: int,
+        status: str,
+        action_text: str | None = None,
+    ) -> None:
+        self.status.append((issue_number, status, action_text))
+
 
 class FakeGitHub:
     def __init__(self) -> None:
@@ -221,6 +229,52 @@ def test_pr_closed_unmerged_marks_withdrawn(
     assert action is not None and "철회" in action
     assert len(gh.comments) == 1 and "철회" in gh.comments[0][1]
     assert gh.closed == [42]
+
+
+def test_enhancement_closed_completed_marks_accepted(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # GitHub 에서 enhancement 이슈를 'completed' 로 close → 시트 '검토완료 · 반영'
+    _, sheet, _ = fakes
+    payload = {
+        "action": "closed",
+        "issue": {"number": 50, "labels": [{"name": "enhancement"}], "state_reason": "completed"},
+    }
+    assert _post(client, payload, "issues").status_code == 200
+    assert len(sheet.status) == 1
+    n, status, action = sheet.status[0]
+    assert (n, status) == (50, "검토완료 · 반영")
+    assert action is not None and "반영" in action
+
+
+def test_enhancement_closed_not_planned_marks_rejected(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # 'not_planned' 로 close → 시트 '검토완료 · 미반영'
+    _, sheet, _ = fakes
+    payload = {
+        "action": "closed",
+        "issue": {
+            "number": 51,
+            "labels": [{"name": "enhancement"}],
+            "state_reason": "not_planned",
+        },
+    }
+    assert _post(client, payload, "issues").status_code == 200
+    assert sheet.status[0][:2] == (51, "검토완료 · 미반영")
+
+
+def test_bug_closed_directly_ignored(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # bug 이슈가 (PR 경유 없이) close 되면 이 핸들러는 무시 (PR-close 가 따로 처리).
+    _, sheet, _ = fakes
+    payload = {
+        "action": "closed",
+        "issue": {"number": 52, "labels": [{"name": "bug"}], "state_reason": "completed"},
+    }
+    assert _post(client, payload, "issues").status_code == 200
+    assert sheet.status == []
 
 
 def test_pr_closed_unrelated_branch_ignored(

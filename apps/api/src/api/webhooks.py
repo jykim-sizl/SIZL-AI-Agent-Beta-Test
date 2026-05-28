@@ -52,6 +52,8 @@ async def receive_webhook(
     try:
         if x_github_event == "issues" and action == "opened":
             _handle_issue_opened(payload, pr)
+        elif x_github_event == "issues" and action == "closed":
+            _handle_issue_closed(payload, sheet)
         elif x_github_event == "pull_request" and action == "closed":
             _handle_pr_closed(payload, sheet, github)
     except Exception as exc:  # noqa: BLE001 - 핸들러 실패가 웹훅 ACK(200)을 막지 않게
@@ -63,6 +65,33 @@ async def receive_webhook(
         )
 
     return {"status": "received"}
+
+
+def _handle_issue_closed(payload: dict[str, Any], sheet: SheetPort) -> None:
+    # enhancement 이슈가 GitHub 에서 close 되면 시트 상태/조치 내용 동기화.
+    # state_reason: 'completed'=반영, 'not_planned'=미반영, 그 외=반영(기본).
+    # bug 는 PR-close 핸들러가 처리하므로 여기서는 무시.
+    issue = payload.get("issue") or {}
+    labels = {lbl.get("name") for lbl in issue.get("labels", []) if isinstance(lbl, dict)}
+    if "enhancement" not in labels:
+        return
+    number = issue.get("number")
+    if not isinstance(number, int):
+        return
+    reason = issue.get("state_reason") or ""
+    if reason == "not_planned":
+        status = "검토완료 · 미반영"
+        action = (
+            f"⚠️ #{number} 미반영 처리 — GitHub 이슈 closed "
+            f"(reason: not_planned). 사유는 시트 '조치 내용'에 정리해주세요."
+        )
+    else:
+        status = "검토완료 · 반영"
+        action = (
+            f"✅ #{number} 반영 처리 — GitHub 이슈 closed "
+            f"(reason: {reason or 'completed'}). 반영 결과는 시트 '조치 내용'에 정리해주세요."
+        )
+    sheet.update_enhancement_status(number, status, action_text=action)
 
 
 def _handle_issue_opened(payload: dict[str, Any], pr: PRService) -> None:
