@@ -6,6 +6,9 @@ from src.services.sheet.port import SheetPort
 
 
 class DummySheetAdapter(SheetPort):
+    def list_issues(self) -> list[dict[str, Any]]:
+        raise NotImplementedError("W2에서 구현")
+
     def append_bug(self, row: dict[str, Any]) -> None:
         raise NotImplementedError("W2에서 구현")
 

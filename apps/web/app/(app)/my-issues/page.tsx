@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormField, Input, Textarea, Select } from "@/components/ui/field";
@@ -8,8 +8,9 @@ import { AttachmentsField, type Attachment } from "@/components/attachments-fiel
 import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { fetchIssues } from "@/lib/api";
+import { getUser } from "@/lib/auth";
 import {
-  MOCK_MY_ISSUES,
   type Issue,
   type IssueStatus,
   type IssueType,
@@ -41,13 +42,21 @@ function statusesForType(type: IssueType): IssueStatus[] {
 }
 
 export default function MyIssuesPage() {
-  const [issues, setIssues] = useState<Issue[]>(MOCK_MY_ISSUES);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "all">("all");
   const [editing, setEditing] = useState<Issue | null>(null);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
   const [editComment, setEditComment] = useState("");
+
+  // 실데이터: 백엔드 GET /issues → 내가 제출한 것(등록자=로그인 이름)만
+  useEffect(() => {
+    const user = getUser();
+    fetchIssues().then((all) => {
+      setIssues(user ? all.filter((i) => i.reporter === user.name) : all);
+    });
+  }, []);
 
   const kpi = useMemo(() => {
     const bug = issues.filter((i) => i.type === "bug");
@@ -110,8 +119,8 @@ export default function MyIssuesPage() {
     const today = new Date().toISOString().slice(0, 10);
     // 추가 의견은 본문 끝에 덧붙임. (실제로는 백엔드에서 GitHub 코멘트/본문에 반영)
     const body = editComment.trim()
-      ? `${editing.body}\n\n## 추가 의견 (${today})\n${editComment.trim()}`
-      : editing.body;
+      ? `${editing.body ?? ""}\n\n## 추가 의견 (${today})\n${editComment.trim()}`
+      : (editing.body ?? "");
     setIssues((prev) =>
       prev.map((i) => (i.number === editing.number ? { ...editing, body, updatedAt: today } : i)),
     );
@@ -270,7 +279,7 @@ export default function MyIssuesPage() {
               </FormField>
 
               <FormField label="내용" htmlFor="edit-body">
-                <Textarea id="edit-body" rows={8} className="font-mono" value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
+                <Textarea id="edit-body" rows={8} className="font-mono" value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
               </FormField>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

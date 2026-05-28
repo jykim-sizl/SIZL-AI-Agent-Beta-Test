@@ -48,4 +48,5 @@ def enhancement_to_row(
         "우선순위": report.priority.value,
         "처리 상태": "검토",
         "비고": report.additional_comments or "",
+        "# github issue": f"#{issue_number}" if issue_number is not None else "",
     }

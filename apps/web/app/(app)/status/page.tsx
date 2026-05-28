@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { DonutChart } from "@/components/donut-chart";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { MOCK_ALL_ISSUES, type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
+import { fetchIssues } from "@/lib/api";
+import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
 const STATUS_LABEL: Record<IssueStatus, string> = {
   received: "접수",
@@ -54,9 +55,14 @@ function downloadCsv(issues: Issue[]) {
 }
 
 export default function StatusPage() {
-  const issues = MOCK_ALL_ISSUES;
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
+
+  // 실데이터: 백엔드 GET /issues → 전체 이슈
+  useEffect(() => {
+    fetchIssues().then(setIssues);
+  }, []);
 
   const stats = useMemo(() => {
     const bug = issues.filter((i) => i.type === "bug");

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
 from src.api.deps import IssueServiceDep, MemberServiceDep, SheetDep
+from src.core.config import settings
 from src.core.logging import logger
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
@@ -25,6 +26,21 @@ class IssueAccepted(BaseModel):
     email: str
     name: str
     team: str
+
+
+@router.get("/issues")
+def list_issues(sheet: SheetDep) -> list[dict[str, Any]]:
+    # 구글 시트(Raw Bugs/Enhancements) → 목록. 프론트 내 이슈/대시보드가 사용.
+    issues = sheet.list_issues()
+    for item in issues:
+        item["githubUrl"] = (
+            f"https://github.com/{settings.github_issue_repo}/issues/{item['number']}"
+        )
+        if item.get("prNumber"):
+            item["prUrl"] = (
+                f"https://github.com/{settings.github_target_repo}/pull/{item['prNumber']}"
+            )
+    return issues
 
 
 @router.post("/issues", response_model=IssueAccepted)

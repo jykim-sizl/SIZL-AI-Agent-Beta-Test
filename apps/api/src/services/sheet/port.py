@@ -19,6 +19,11 @@ class SheetPort(ABC):
     def append_enhancement(self, row: dict[str, Any]) -> None: ...
 
     @abstractmethod
+    def list_issues(self) -> list[dict[str, Any]]:
+        """Raw Bugs + Enhancements 행을 프론트 목록용 dict 리스트로 반환(읽기 전용)."""
+        ...
+
+    @abstractmethod
     def update_pr_status(
         self,
         issue_number: int,
