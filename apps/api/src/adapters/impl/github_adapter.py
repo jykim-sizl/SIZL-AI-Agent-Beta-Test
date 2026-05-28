@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from time import monotonic
 
 from github import Auth, GithubException, GithubIntegration
 from github.Repository import Repository
@@ -18,11 +19,14 @@ class GitHubAppAdapter(GitHubPort):
     App은 두 repo 모두에 설치돼 있어야 한다(repo별 설치 토큰을 각각 발급).
     """
 
+    _TITLES_TTL = 30.0
+
     def __init__(self, app_id: str, private_key_path: str, issue_repo: str, pr_repo: str) -> None:
         self._issue_repo = issue_repo
         self._pr_repo = pr_repo
         private_key = Path(private_key_path).read_text(encoding="utf-8")
         self._integration = GithubIntegration(auth=Auth.AppAuth(int(app_id), private_key))
+        self._titles_cache: tuple[float, dict[int, str]] | None = None
 
     def _repo(self, full_name: str) -> Repository:
         owner, name = full_name.split("/", 1)
@@ -34,6 +38,7 @@ class GitHubAppAdapter(GitHubPort):
         repo = self._repo(self._issue_repo)
         issue = repo.create_issue(title=draft.title, body=draft.body, labels=draft.labels)
         logger.info("github_issue_created", number=issue.number, repo=self._issue_repo)
+        self._invalidate_titles_cache()
         return issue.number
 
     def get_issue(self, issue_number: int) -> dict[str, str]:
@@ -41,7 +46,10 @@ class GitHubAppAdapter(GitHubPort):
         return {"title": issue.title or "", "body": issue.body or ""}
 
     def list_issue_titles(self) -> dict[int, str]:
-        # 최근 수정 200개 — beta 규모상 충분. PR 은 issues API 에 섞여 나오므로 제외.
+        # 30초 메모리 캐시 — /issues 가 매번 GitHub 페이지네이션 돌면 ~10초+ 걸려서.
+        # 이슈 생성·수정·close 시 무효화.
+        if self._titles_cache and monotonic() - self._titles_cache[0] < self._TITLES_TTL:
+            return self._titles_cache[1]
         repo = self._repo(self._issue_repo)
         titles: dict[int, str] = {}
         for i, issue in enumerate(repo.get_issues(state="all", sort="updated", direction="desc")):
@@ -51,11 +59,16 @@ class GitHubAppAdapter(GitHubPort):
                 continue
             titles[issue.number] = issue.title or ""
         logger.info("github_titles_listed", repo=self._issue_repo, count=len(titles))
+        self._titles_cache = (monotonic(), titles)
         return titles
+
+    def _invalidate_titles_cache(self) -> None:
+        self._titles_cache = None
 
     def update_issue(self, issue_number: int, title: str, body: str) -> None:
         self._repo(self._issue_repo).get_issue(issue_number).edit(title=title, body=body)
         logger.info("github_issue_updated", number=issue_number, repo=self._issue_repo)
+        self._invalidate_titles_cache()
 
     def add_comment(self, issue_number: int, body: str) -> None:
         self._repo(self._issue_repo).get_issue(issue_number).create_comment(body)
@@ -108,3 +121,4 @@ class GitHubAppAdapter(GitHubPort):
     def close_issue(self, issue_number: int) -> None:
         self._repo(self._issue_repo).get_issue(issue_number).edit(state="closed")
         logger.info("github_issue_closed", number=issue_number, repo=self._issue_repo)
+        self._invalidate_titles_cache()

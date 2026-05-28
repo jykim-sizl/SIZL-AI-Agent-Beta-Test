@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from time import monotonic
 from typing import Any
 
 from google.oauth2 import service_account
@@ -97,6 +98,9 @@ class GoogleSheetAdapter(SheetPort):
     운영자 컬럼은 항상 빈칸으로 두어 사람이 채운 값을 보존한다(CLAUDE.md).
     """
 
+    # /issues 응답 가속용 메모리 캐시. 쓰기 시 무효화.
+    _LIST_TTL = 30.0
+
     def __init__(self, service_account_json_path: str, spreadsheet_id: str) -> None:
         self._sid = spreadsheet_id
         creds = service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
@@ -106,6 +110,7 @@ class GoogleSheetAdapter(SheetPort):
             "sheets", "v4", credentials=creds, cache_discovery=False
         ).spreadsheets()
         self._values = self._sheets.values()
+        self._list_cache: tuple[float, list[dict[str, Any]]] | None = None
         self._sheet_ids: dict[str, int] = {}
 
     def _sheet_id(self, title: str) -> int:
@@ -117,9 +122,17 @@ class GoogleSheetAdapter(SheetPort):
         return self._sheet_ids[title]
 
     def list_issues(self) -> list[dict[str, Any]]:
-        return self._read(BUG_SHEET, BUG_COLUMNS, "bug") + self._read(
+        # 30초 캐시. 쓰기(append/update_*) 시 무효화 — 새 행이 즉시 보이게.
+        if self._list_cache and monotonic() - self._list_cache[0] < self._LIST_TTL:
+            return self._list_cache[1]
+        result = self._read(BUG_SHEET, BUG_COLUMNS, "bug") + self._read(
             ENH_SHEET, ENH_COLUMNS, "enhancement"
         )
+        self._list_cache = (monotonic(), result)
+        return result
+
+    def _invalidate_list_cache(self) -> None:
+        self._list_cache = None
 
     def _read(self, sheet: str, columns: list[str], type_: str) -> list[dict[str, Any]]:
         last = chr(ord("A") + len(columns) - 1)
@@ -178,6 +191,7 @@ class GoogleSheetAdapter(SheetPort):
         updated_range = result.get("updates", {}).get("updatedRange", "")
         self._whiten_row(sheet, updated_range, len(columns))
         logger.info("sheet_row_appended", sheet=sheet, issue=row.get(_ISSUE_COL))
+        self._invalidate_list_cache()
 
     def _whiten_row(self, sheet: str, updated_range: str, ncols: int) -> None:
         match = re.search(r"![A-Za-z]+(\d+)", updated_range)
@@ -261,6 +275,7 @@ class GoogleSheetAdapter(SheetPort):
                     pr=pr_number,
                     has_action=bool(action_text),
                 )
+                self._invalidate_list_cache()
                 return
         logger.warning("sheet_status_row_not_found", issue=issue_number)
 
@@ -300,5 +315,6 @@ class GoogleSheetAdapter(SheetPort):
                     status=status,
                     has_action=bool(action_text),
                 )
+                self._invalidate_list_cache()
                 return
         logger.warning("sheet_enh_status_row_not_found", issue=issue_number)
