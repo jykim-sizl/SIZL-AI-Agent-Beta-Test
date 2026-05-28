@@ -274,9 +274,9 @@ export default function MyIssuesPage() {
                 <a href={issue.githubUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                   GitHub에서 보기 →
                 </a>
-                {issue.prNumber && (
+                {issue.prNumber && issue.prUrl && (
                   <a
-                    href={`https://github.com/Neolab-test/test/pull/${issue.prNumber}`}
+                    href={issue.prUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-primary hover:underline"

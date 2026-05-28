@@ -7,7 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 from structlog.testing import capture_logs
 
-from src.api.deps import get_github, get_pr_service, get_sheet
+from src.adapters.impl import DummyLLMAdapter
+from src.api.deps import get_github, get_llm, get_pr_service, get_sheet
 from src.core.security import verify_github_signature
 from src.main import app
 
@@ -71,6 +72,9 @@ def fakes() -> tuple[FakePR, FakeSheet, FakeGitHub]:
     app.dependency_overrides[get_pr_service] = lambda: pr
     app.dependency_overrides[get_sheet] = lambda: sheet
     app.dependency_overrides[get_github] = lambda: gh
+    # 테스트 환경에 GEMINI_API_KEY 가 있어도 실제 호출 안 하도록 DummyLLM 으로 override.
+    # → summarize_pr_close/draft_pr_body 가 None → 호출자 템플릿 fallback 검증 가능.
+    app.dependency_overrides[get_llm] = DummyLLMAdapter
     yield pr, sheet, gh
     app.dependency_overrides.clear()
 

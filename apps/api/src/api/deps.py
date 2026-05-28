@@ -98,7 +98,13 @@ SheetDep = Annotated[SheetPort, Depends(get_sheet)]
 
 @lru_cache
 def _pr_service() -> PRService:
-    return PRService(_github(), _sheet(), settings.github_issue_repo, settings.github_target_repo)
+    return PRService(
+        _github(),
+        _sheet(),
+        _llm(),
+        settings.github_issue_repo,
+        settings.github_target_repo,
+    )
 
 
 def get_pr_service() -> PRService:
