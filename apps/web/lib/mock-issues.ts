@@ -21,11 +21,12 @@ export interface Issue {
   area: string;
   priority: Priority; // 버그=심각도, 개선=우선순위 (공통 P1~P4)
   status: IssueStatus;
-  body: string; // GitHub Issue 본문 (마크다운)
-  reporter?: string; // 제보자 (전체 이슈 보기용)
+  body?: string; // GitHub Issue 본문 (목업 전용; 실데이터 목록엔 없음)
+  reporter?: string; // 제보자 (등록자)
   createdAt: string;
   updatedAt: string;
   prNumber?: number;
+  prUrl?: string;
   githubUrl: string;
 }
 

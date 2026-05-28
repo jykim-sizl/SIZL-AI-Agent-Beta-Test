@@ -58,10 +58,34 @@ ENH_COLUMNS = [
     "배포 여부",
     "종료 여부",
     "비고",
+    "# github issue",
 ]
 
 _ISSUE_COL = "# github issue"  # 행 식별용 컬럼 (Raw Issues)
 _STATUS_COL = "처리 상태"
+
+# 시트 한글 처리상태 → 프론트 enum
+_BUG_STATUS = {
+    "접수": "received",
+    "진행중": "in_progress",
+    "재현 불가": "cannot_reproduce",
+    "재현불가": "cannot_reproduce",
+    "완료": "completed",
+}
+_ENH_STATUS = {
+    "검토": "reviewing",
+    "검토완료 · 미반영": "reviewed_rejected",
+    "검토완료·미반영": "reviewed_rejected",
+    "미반영": "reviewed_rejected",
+    "검토완료 · 반영": "reviewed_accepted",
+    "검토완료·반영": "reviewed_accepted",
+    "반영": "reviewed_accepted",
+}
+
+
+def _parse_int(value: str) -> int | None:
+    digits = value.strip().lstrip("#").strip()
+    return int(digits) if digits.isdigit() else None
 
 
 class GoogleSheetAdapter(SheetPort):
@@ -90,6 +114,47 @@ class GoogleSheetAdapter(SheetPort):
                 s["properties"]["title"]: s["properties"]["sheetId"] for s in meta["sheets"]
             }
         return self._sheet_ids[title]
+
+    def list_issues(self) -> list[dict[str, Any]]:
+        return self._read(BUG_SHEET, BUG_COLUMNS, "bug") + self._read(
+            ENH_SHEET, ENH_COLUMNS, "enhancement"
+        )
+
+    def _read(self, sheet: str, columns: list[str], type_: str) -> list[dict[str, Any]]:
+        last = chr(ord("A") + len(columns) - 1)
+        resp = self._values.get(spreadsheetId=self._sid, range=f"'{sheet}'!A2:{last}").execute()
+        issues: list[dict[str, Any]] = []
+        for raw in resp.get("values", []):
+            row = {
+                columns[i]: (raw[i].strip() if i < len(raw) and raw[i] else "")
+                for i in range(len(columns))
+            }
+            number = _parse_int(row.get(_ISSUE_COL, ""))
+            if number is None:  # # github issue 없는 행(빈/운영자 행)은 건너뜀
+                continue
+            if type_ == "bug":
+                title = row.get("발생 증상") or row.get("세부 기능") or "(제목 없음)"
+                status = _BUG_STATUS.get(row.get(_STATUS_COL, ""), "received")
+                pr_number = _parse_int(row.get("PR 번호", ""))
+            else:
+                title = row.get("세부 기능") or "(제목 없음)"
+                status = _ENH_STATUS.get(row.get(_STATUS_COL, ""), "reviewing")
+                pr_number = None
+            issues.append(
+                {
+                    "number": number,
+                    "type": type_,
+                    "title": title,
+                    "area": row.get("테스트 영역", ""),
+                    "priority": row.get("우선순위") or "P3",
+                    "status": status,
+                    "reporter": row.get("등록자", ""),
+                    "createdAt": row.get("등록일", ""),
+                    "updatedAt": row.get("처리일자") or row.get("등록일", ""),
+                    "prNumber": pr_number,
+                }
+            )
+        return issues
 
     def append_bug(self, row: dict[str, Any]) -> None:
         self._append(BUG_SHEET, BUG_COLUMNS, row)

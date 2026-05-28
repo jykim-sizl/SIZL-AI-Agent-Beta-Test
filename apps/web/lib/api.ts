@@ -1,5 +1,18 @@
 // 백엔드(FastAPI) 호출 클라이언트. Phase A 기본값은 로컬 :8000.
+import type { Issue } from "@/lib/mock-issues";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// GET /issues → 구글 시트 기반 실제 이슈 목록. 실패 시 빈 배열(페이지가 안 깨지게).
+export async function fetchIssues(): Promise<Issue[]> {
+  try {
+    const res = await fetch(`${API_BASE}/issues`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as Issue[];
+  } catch {
+    return [];
+  }
+}
 
 export class SubmitError extends Error {
   constructor(

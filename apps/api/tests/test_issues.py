@@ -55,6 +55,9 @@ class FakeSheet(SheetPort):
     def append_enhancement(self, row: dict[str, Any]) -> None:
         self.enhancements.append(row)
 
+    def list_issues(self) -> list[dict[str, Any]]:  # pragma: no cover
+        return []
+
     def update_pr_status(self, issue_number: int, status: str) -> None:  # pragma: no cover
         raise NotImplementedError
 
@@ -120,6 +123,12 @@ def test_registered_enhancement_returns_200(client: TestClient, sheet: FakeSheet
     assert res.status_code == 200
     assert res.json()["kind"] == "enhancement"
     assert len(sheet.enhancements) == 1
+
+
+def test_list_issues_returns_list(client: TestClient) -> None:
+    res = client.get("/issues")
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)
 
 
 def test_unregistered_returns_403(client: TestClient) -> None:

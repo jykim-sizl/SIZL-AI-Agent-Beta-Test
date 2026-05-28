@@ -63,6 +63,8 @@ def test_dummy_sheet_raises_not_implemented() -> None:
     with pytest.raises(NotImplementedError):
         adapter.append_enhancement({"issue_number": 1})
     with pytest.raises(NotImplementedError):
+        adapter.list_issues()
+    with pytest.raises(NotImplementedError):
         adapter.update_pr_status(1, "open")
 
 
