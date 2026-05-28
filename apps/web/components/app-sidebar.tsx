@@ -9,6 +9,7 @@ const navItems = [
   { href: "/select", label: "이슈 제출", icon: "✏️", match: ["/select", "/bug-report", "/enhancement"] },
   { href: "/my-issues", label: "내가 제출한 이슈", icon: "📄", match: ["/my-issues"] },
   { href: "/status", label: "대시보드", icon: "📊", match: ["/status"] },
+  { href: "/help", label: "도움말", icon: "📖", match: ["/help"] },
 ];
 
 export function AppSidebar({ user }: { user: User }) {
