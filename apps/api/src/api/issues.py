@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from src.api.deps import IssueServiceDep, MemberServiceDep, SheetDep
+from src.api.deps import GitHubDep, IssueServiceDep, MemberServiceDep, SheetDep
 from src.core.config import settings
 from src.core.logging import logger
 from src.models.bug_report import BugReport
@@ -41,6 +41,34 @@ def list_issues(sheet: SheetDep) -> list[dict[str, Any]]:
                 f"https://github.com/{settings.github_target_repo}/pull/{item['prNumber']}"
             )
     return issues
+
+
+@router.get("/issues/{number}")
+def get_issue(number: int, github: GitHubDep) -> dict[str, str]:
+    # 단일 이슈 상세 (수정 모달 prefill 용 — title + body 풀로 받음).
+    return github.get_issue(number)
+
+
+class IssuePatch(BaseModel):
+    # title/body 수정. comment 가 주어지면 별도 코멘트로 게시.
+    title: str | None = None
+    body: str | None = None
+    comment: str | None = None
+
+
+@router.patch("/issues/{number}")
+def update_issue(number: int, patch: IssuePatch, github: GitHubDep) -> dict[str, str]:
+    if patch.title is not None or patch.body is not None:
+        # title/body 중 하나만 보내도 GitHub 가 부분 업데이트를 지원하지만,
+        # 우리 케이스는 모달이 둘 다 보냄 → 둘 다 안전하게 전달.
+        current = github.get_issue(number)
+        title = patch.title if patch.title is not None else current["title"]
+        body = patch.body if patch.body is not None else current["body"]
+        github.update_issue(number, title=title, body=body)
+    if patch.comment and patch.comment.strip():
+        github.add_comment(number, patch.comment.strip())
+    logger.info("issue_edited", number=number, has_comment=bool(patch.comment))
+    return {"status": "updated"}
 
 
 @router.post("/issues", response_model=IssueAccepted)

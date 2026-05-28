@@ -3,19 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FormField, Input, Textarea, Select } from "@/components/ui/field";
-import { AttachmentsField, type Attachment } from "@/components/attachments-field";
+import { FormField, Input, Textarea } from "@/components/ui/field";
 import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { fetchIssues } from "@/lib/api";
+import { fetchIssues, fetchIssueDetail, updateIssue } from "@/lib/api";
 import { getUser } from "@/lib/auth";
-import {
-  type Issue,
-  type IssueStatus,
-  type IssueType,
-  type Priority,
-} from "@/lib/mock-issues";
+import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
 const TYPE_FILTERS: { value: IssueType | "all"; label: string }[] = [
   { value: "all", label: "전체" },
@@ -28,14 +22,20 @@ const STATUS_LABEL: Record<IssueStatus, string> = {
   in_progress: "진행중",
   cannot_reproduce: "재현 불가",
   completed: "완료",
+  withdrawn: "철회",
   reviewing: "검토",
   reviewed_rejected: "검토완료 · 미반영",
   reviewed_accepted: "검토완료 · 반영",
 };
 
-const BUG_STATUSES: IssueStatus[] = ["received", "in_progress", "cannot_reproduce", "completed"];
+const BUG_STATUSES: IssueStatus[] = [
+  "received",
+  "in_progress",
+  "cannot_reproduce",
+  "withdrawn",
+  "completed",
+];
 const ENH_STATUSES: IssueStatus[] = ["reviewing", "reviewed_rejected", "reviewed_accepted"];
-const PRIORITIES: Priority[] = ["P1", "P2", "P3", "P4"];
 
 function statusesForType(type: IssueType): IssueStatus[] {
   return type === "bug" ? BUG_STATUSES : ENH_STATUSES;
@@ -47,8 +47,10 @@ export default function MyIssuesPage() {
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "all">("all");
   const [editing, setEditing] = useState<Issue | null>(null);
-  const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
   const [editComment, setEditComment] = useState("");
+  const [editLoading, setEditLoading] = useState(false); // 본문 prefill 중
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // 실데이터: 백엔드 GET /issues → 내가 제출한 것(등록자=로그인 이름)만
   useEffect(() => {
@@ -109,21 +111,48 @@ export default function MyIssuesPage() {
   };
 
   const openEdit = (issue: Issue) => {
-    setEditing(issue);
-    setEditAttachments([]);
+    // 우선 메타만 채워 모달 띄우고 본문은 백엔드에서 비동기로 가져와 prefill.
+    setEditing({ ...issue, body: issue.body ?? "" });
     setEditComment("");
+    setEditError("");
+    setEditLoading(true);
+    fetchIssueDetail(issue.number).then((detail) => {
+      if (detail) {
+        setEditing((cur) =>
+          cur && cur.number === issue.number
+            ? { ...cur, title: detail.title || cur.title, body: detail.body }
+            : cur,
+        );
+      } else {
+        setEditError("본문을 불러오지 못했어요. GitHub 본문 없이 저장하면 빈 본문이 됩니다.");
+      }
+      setEditLoading(false);
+    });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editing) return;
+    setEditSaving(true);
+    setEditError("");
+    const ok = await updateIssue(editing.number, {
+      title: editing.title,
+      body: editing.body ?? "",
+      comment: editComment.trim() || undefined,
+    });
+    if (!ok) {
+      setEditError("저장 실패 — GitHub 반영에 실패했어요. 잠시 후 다시 시도해주세요.");
+      setEditSaving(false);
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
-    // 추가 의견은 본문 끝에 덧붙임. (실제로는 백엔드에서 GitHub 코멘트/본문에 반영)
-    const body = editComment.trim()
-      ? `${editing.body ?? ""}\n\n## 추가 의견 (${today})\n${editComment.trim()}`
-      : (editing.body ?? "");
     setIssues((prev) =>
-      prev.map((i) => (i.number === editing.number ? { ...editing, body, updatedAt: today } : i)),
+      prev.map((i) =>
+        i.number === editing.number
+          ? { ...i, title: editing.title, body: editing.body, updatedAt: today }
+          : i,
+      ),
     );
+    setEditSaving(false);
     setEditing(null);
   };
 
@@ -267,54 +296,73 @@ export default function MyIssuesPage() {
               <div>
                 <h2 className="text-xl font-semibold">이슈 수정 · #{editing.number}</h2>
                 <p className="text-sm text-muted-foreground">
-                  저장하면 GitHub Issue/PR·시트에도 반영됩니다. (백엔드 연동 후)
+                  제목·본문 수정은 GitHub 이슈에 즉시 반영. 추가 의견은 별도 코멘트로 게시.
                 </p>
               </div>
               <button onClick={() => setEditing(null)} className="rounded p-2 hover:bg-gray-100" aria-label="닫기">✕</button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <FormField label="제목" htmlFor="edit-title">
-                <Input id="edit-title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
-              </FormField>
-
-              <FormField label="내용" htmlFor="edit-body">
-                <Textarea id="edit-body" rows={8} className="font-mono" value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
-              </FormField>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <FormField label="영역" htmlFor="edit-area">
-                  <Input id="edit-area" value={editing.area} onChange={(e) => setEditing({ ...editing, area: e.target.value })} />
-                </FormField>
-                <FormField label={editing.type === "bug" ? "심각도" : "우선순위"} htmlFor="edit-priority">
-                  <Select id="edit-priority" value={editing.priority} onChange={(e) => setEditing({ ...editing, priority: e.target.value as Priority })}>
-                    {PRIORITIES.map((p) => (<option key={p} value={p}>{p}</option>))}
-                  </Select>
-                </FormField>
-                <FormField label="처리 상태" htmlFor="edit-status">
-                  <Select id="edit-status" value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value as IssueStatus })}>
-                    {statusesForType(editing.type).map((s) => (<option key={s} value={s}>{STATUS_LABEL[s]}</option>))}
-                  </Select>
-                </FormField>
-              </div>
-
-              <FormField label="추가 의견" htmlFor="edit-comment" hint="입력하면 본문 끝에 덧붙여집니다.">
-                <Textarea id="edit-comment" rows={3} placeholder="추가로 남길 내용이 있다면 적어주세요..." value={editComment} onChange={(e) => setEditComment(e.target.value)} />
-              </FormField>
-
-              <div>
-                <p className="mb-2 text-sm font-medium">첨부파일 추가</p>
-                <AttachmentsField
-                  attachments={editAttachments}
-                  onAttachmentsChange={setEditAttachments}
-                  showConsoleLog={false}
-                />
-              </div>
+            {/* 읽기 전용 메타 (영역·우선순위·처리상태는 시트/운영자 관할) */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-sizl-surface px-3 py-2 text-xs">
+              <span className="rounded bg-gray-100 px-2 py-0.5">{editing.area}</span>
+              <PriorityBadge priority={editing.priority} />
+              <StatusBadge status={editing.status} />
+              <span className="text-muted-foreground">· 등록 {editing.createdAt}</span>
             </div>
 
+            <div className="flex flex-col gap-4">
+              <FormField label="제목" htmlFor="edit-title">
+                <Input
+                  id="edit-title"
+                  value={editing.title}
+                  onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                  disabled={editLoading || editSaving}
+                />
+              </FormField>
+
+              <FormField
+                label="내용 (GitHub 본문)"
+                htmlFor="edit-body"
+                hint={editLoading ? "GitHub에서 본문 불러오는 중…" : "마크다운 그대로 편집됩니다."}
+              >
+                <Textarea
+                  id="edit-body"
+                  rows={10}
+                  className="font-mono text-xs"
+                  value={editing.body ?? ""}
+                  onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+                  disabled={editLoading || editSaving}
+                  placeholder={editLoading ? "불러오는 중…" : ""}
+                />
+              </FormField>
+
+              <FormField
+                label="추가 의견 (코멘트로 게시)"
+                htmlFor="edit-comment"
+                hint="입력하면 GitHub 이슈에 별도 코멘트로 등록됩니다. (본문 수정과 무관)"
+              >
+                <Textarea
+                  id="edit-comment"
+                  rows={3}
+                  placeholder="추가로 남길 내용이 있다면 적어주세요..."
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                  disabled={editSaving}
+                />
+              </FormField>
+            </div>
+
+            {editError && (
+              <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {editError}
+              </div>
+            )}
+
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setEditing(null)}>취소</Button>
-              <Button onClick={saveEdit}>저장</Button>
+              <Button variant="ghost" onClick={() => setEditing(null)} disabled={editSaving}>취소</Button>
+              <Button onClick={saveEdit} disabled={editLoading || editSaving}>
+                {editSaving ? "저장 중..." : "저장"}
+              </Button>
             </div>
           </Card>
         </div>

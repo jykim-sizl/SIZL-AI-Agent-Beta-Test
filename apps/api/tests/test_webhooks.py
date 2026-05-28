@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from structlog.testing import capture_logs
 
-from src.api.deps import get_pr_service, get_sheet
+from src.api.deps import get_github, get_pr_service, get_sheet
 from src.core.security import verify_github_signature
 from src.main import app
 
@@ -25,7 +25,8 @@ class FakePR:
 
 class FakeSheet:
     def __init__(self) -> None:
-        self.status: list[tuple[int, str]] = []
+        # (issue_number, status, action_text)
+        self.status: list[tuple[int, str, str | None]] = []
 
     def append_bug(self, row: dict[str, Any]) -> None:  # pragma: no cover
         pass
@@ -33,21 +34,41 @@ class FakeSheet:
     def append_enhancement(self, row: dict[str, Any]) -> None:  # pragma: no cover
         pass
 
-    def update_pr_status(self, issue_number: int, status: str) -> None:
-        self.status.append((issue_number, status))
+    def update_pr_status(
+        self,
+        issue_number: int,
+        status: str,
+        pr_number: int | None = None,
+        pr_url: str | None = None,
+        action_text: str | None = None,
+    ) -> None:
+        self.status.append((issue_number, status, action_text))
+
+
+class FakeGitHub:
+    def __init__(self) -> None:
+        self.comments: list[tuple[int, str]] = []
+        self.closed: list[int] = []
+
+    def add_comment(self, issue_number: int, body: str) -> None:
+        self.comments.append((issue_number, body))
+
+    def close_issue(self, issue_number: int) -> None:
+        self.closed.append(issue_number)
 
 
 @pytest.fixture
-def fakes() -> tuple[FakePR, FakeSheet]:
-    pr, sheet = FakePR(), FakeSheet()
+def fakes() -> tuple[FakePR, FakeSheet, FakeGitHub]:
+    pr, sheet, gh = FakePR(), FakeSheet(), FakeGitHub()
     app.dependency_overrides[get_pr_service] = lambda: pr
     app.dependency_overrides[get_sheet] = lambda: sheet
-    yield pr, sheet
+    app.dependency_overrides[get_github] = lambda: gh
+    yield pr, sheet, gh
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def client(fakes: tuple[FakePR, FakeSheet]) -> TestClient:
+def client(fakes: tuple[FakePR, FakeSheet, FakeGitHub]) -> TestClient:
     return TestClient(app)
 
 
@@ -109,8 +130,10 @@ def test_event_extracted_and_logged(client: TestClient) -> None:
 
 
 # --- 라우팅 ---
-def test_bug_issue_opened_triggers_pr(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:
-    pr, _ = fakes
+def test_bug_issue_opened_triggers_pr(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    pr, *_ = fakes
     payload = {
         "action": "opened",
         "issue": {
@@ -124,9 +147,9 @@ def test_bug_issue_opened_triggers_pr(client: TestClient, fakes: tuple[FakePR, F
 
 
 def test_enhancement_issue_opened_no_pr(
-    client: TestClient, fakes: tuple[FakePR, FakeSheet]
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
 ) -> None:
-    pr, _ = fakes
+    pr, *_ = fakes
     payload = {
         "action": "opened",
         "issue": {"number": 43, "title": "개선", "labels": [{"name": "enhancement"}]},
@@ -135,9 +158,11 @@ def test_enhancement_issue_opened_no_pr(
     assert pr.created == []
 
 
-def test_p4_bug_also_triggers_pr(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:
+def test_p4_bug_also_triggers_pr(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
     # 사용자 결정(2026-05-27): P4 버그도 PR 생성.
-    pr, _ = fakes
+    pr, *_ = fakes
     payload = {
         "action": "opened",
         "issue": {
@@ -150,26 +175,67 @@ def test_p4_bug_also_triggers_pr(client: TestClient, fakes: tuple[FakePR, FakeSh
     assert pr.created == [(44, "사소")]
 
 
-def test_pr_merged_updates_sheet(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:
-    _, sheet = fakes
+def test_pr_merged_updates_sheet(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    _, sheet, gh = fakes
     payload = {
         "action": "closed",
-        "pull_request": {"merged": True, "head": {"ref": "auto/issue-42"}},
+        "pull_request": {
+            "merged": True,
+            "number": 7,
+            "html_url": "https://github.com/x/y/pull/7",
+            "merge_commit_sha": "abcdef1234567890",
+            "head": {"ref": "auto/issue-42"},
+        },
     }
     assert _post(client, payload, "pull_request").status_code == 200
-    assert sheet.status == [(42, "완료")]
+    # 시트: 상태 '완료' + 코멘트 텍스트가 action_text 로 미러됨
+    assert len(sheet.status) == 1
+    issue_n, status, action = sheet.status[0]
+    assert (issue_n, status) == (42, "완료")
+    assert action is not None and "완료" in action and "PR #7" in action
+    # 이슈: 코멘트 게시 + close
+    assert len(gh.comments) == 1 and gh.comments[0][0] == 42 and "완료" in gh.comments[0][1]
+    assert gh.closed == [42]
 
 
-def test_pr_closed_not_merged_no_update(
-    client: TestClient, fakes: tuple[FakePR, FakeSheet]
+def test_pr_closed_unmerged_marks_withdrawn(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
 ) -> None:
-    _, sheet = fakes
+    # 머지 없이 닫힌 분석 PR → 이슈 '철회' + 코멘트 + close (사용자 결정 2026-05-28).
+    _, sheet, gh = fakes
     payload = {
         "action": "closed",
-        "pull_request": {"merged": False, "head": {"ref": "auto/issue-42"}},
+        "pull_request": {
+            "merged": False,
+            "number": 8,
+            "html_url": "https://github.com/x/y/pull/8",
+            "head": {"ref": "auto/issue-42"},
+        },
+    }
+    assert _post(client, payload, "pull_request").status_code == 200
+    assert len(sheet.status) == 1
+    issue_n, status, action = sheet.status[0]
+    assert (issue_n, status) == (42, "철회")
+    assert action is not None and "철회" in action
+    assert len(gh.comments) == 1 and "철회" in gh.comments[0][1]
+    assert gh.closed == [42]
+
+
+def test_pr_closed_unrelated_branch_ignored(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # auto/issue-N 외 브랜치의 PR 은 무시 (수동 PR/외부 PR 등).
+    _, sheet, gh = fakes
+    payload = {
+        "action": "closed",
+        "pull_request": {"merged": True, "head": {"ref": "feature/something"}},
     }
     assert _post(client, payload, "pull_request").status_code == 200
     assert sheet.status == []
+    assert gh.comments == []
+    assert gh.closed == []
 
 
 def test_verify_function_unit() -> None:

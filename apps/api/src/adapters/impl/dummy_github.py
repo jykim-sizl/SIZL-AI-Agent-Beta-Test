@@ -8,6 +8,15 @@ class DummyGitHubAdapter(GitHubPort):
     def create_issue(self, draft: IssueDraft) -> int:
         raise NotImplementedError("W2에서 구현")
 
+    def get_issue(self, issue_number: int) -> dict[str, str]:
+        raise NotImplementedError("W2에서 구현")
+
+    def update_issue(self, issue_number: int, title: str, body: str) -> None:
+        raise NotImplementedError("W2에서 구현")
+
+    def add_comment(self, issue_number: int, body: str) -> None:
+        raise NotImplementedError("W2에서 구현")
+
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:
         raise NotImplementedError("W2에서 구현")
 

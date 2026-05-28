@@ -21,5 +21,6 @@ class DummySheetAdapter(SheetPort):
         status: str,
         pr_number: int | None = None,
         pr_url: str | None = None,
+        action_text: str | None = None,
     ) -> None:
         raise NotImplementedError("W2에서 구현")

@@ -30,13 +30,15 @@ export function PriorityBadge({
   );
 }
 
-// 버그: received(접수) → in_progress(재현O·PR생성) / cannot_reproduce(재현X·closed) → completed
+// 버그: received(접수) → in_progress(재현O·PR생성) / cannot_reproduce(재현X·closed)
+//        → completed / withdrawn(분석 PR 폐기, ADR 2026-05-28)
 // 개선: reviewing / reviewed_rejected / reviewed_accepted
 export type IssueStatus =
   | "received"
   | "in_progress"
   | "cannot_reproduce"
   | "completed"
+  | "withdrawn"
   | "reviewing"
   | "reviewed_rejected"
   | "reviewed_accepted";
@@ -46,6 +48,7 @@ const statusConfig: Record<IssueStatus, { label: string; className: string }> = 
   in_progress: { label: "진행중", className: "text-orange-600" },
   cannot_reproduce: { label: "재현 불가", className: "text-gray-500" },
   completed: { label: "완료", className: "text-green-600" },
+  withdrawn: { label: "철회", className: "text-purple-600" },
   reviewing: { label: "검토", className: "text-blue-600" },
   reviewed_rejected: { label: "검토완료 · 미반영", className: "text-gray-500" },
   reviewed_accepted: { label: "검토완료 · 반영", className: "text-green-600" },

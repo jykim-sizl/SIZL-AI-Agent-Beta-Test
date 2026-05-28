@@ -36,6 +36,18 @@ class GitHubAppAdapter(GitHubPort):
         logger.info("github_issue_created", number=issue.number, repo=self._issue_repo)
         return issue.number
 
+    def get_issue(self, issue_number: int) -> dict[str, str]:
+        issue = self._repo(self._issue_repo).get_issue(issue_number)
+        return {"title": issue.title or "", "body": issue.body or ""}
+
+    def update_issue(self, issue_number: int, title: str, body: str) -> None:
+        self._repo(self._issue_repo).get_issue(issue_number).edit(title=title, body=body)
+        logger.info("github_issue_updated", number=issue_number, repo=self._issue_repo)
+
+    def add_comment(self, issue_number: int, body: str) -> None:
+        self._repo(self._issue_repo).get_issue(issue_number).create_comment(body)
+        logger.info("github_issue_commented", number=issue_number, repo=self._issue_repo)
+
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:
         # 타깃 repo(pr_repo)에 빈 브랜치 + 빈 PR(코드 없음) 생성. (App이 pr_repo에 설치됨)
         repo = self._repo(self._pr_repo)

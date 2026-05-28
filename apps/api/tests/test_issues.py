@@ -27,10 +27,27 @@ class FakeMemberPort(MemberPort):
 
 
 class FakeGitHub(GitHubPort):
-    """고정 이슈 번호를 돌려주는 테스트용 GitHubPort (실 API 미호출)."""
+    """이슈 생성·조회·갱신·댓글을 메모리에 기록하는 테스트용 GitHubPort."""
+
+    def __init__(self) -> None:
+        # 기본: 이슈 #101 이 이미 있는 셈 치고 get/update 테스트에 쓰임.
+        self.issues: dict[int, dict[str, str]] = {
+            101: {"title": "원래 제목", "body": "원래 본문"}
+        }
+        self.comments: list[tuple[int, str]] = []
 
     def create_issue(self, draft: IssueDraft) -> int:
+        self.issues[101] = {"title": draft.title, "body": draft.body}
         return 101
+
+    def get_issue(self, issue_number: int) -> dict[str, str]:
+        return self.issues[issue_number]
+
+    def update_issue(self, issue_number: int, title: str, body: str) -> None:
+        self.issues[issue_number] = {"title": title, "body": body}
+
+    def add_comment(self, issue_number: int, body: str) -> None:
+        self.comments.append((issue_number, body))
 
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
@@ -58,7 +75,14 @@ class FakeSheet(SheetPort):
     def list_issues(self) -> list[dict[str, Any]]:  # pragma: no cover
         return []
 
-    def update_pr_status(self, issue_number: int, status: str) -> None:  # pragma: no cover
+    def update_pr_status(  # pragma: no cover
+        self,
+        issue_number: int,
+        status: str,
+        pr_number: int | None = None,
+        pr_url: str | None = None,
+        action_text: str | None = None,
+    ) -> None:
         raise NotImplementedError
 
 

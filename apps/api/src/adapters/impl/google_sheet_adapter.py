@@ -70,6 +70,7 @@ _BUG_STATUS = {
     "진행중": "in_progress",
     "재현 불가": "cannot_reproduce",
     "재현불가": "cannot_reproduce",
+    "철회": "withdrawn",
     "완료": "completed",
 }
 _ENH_STATUS = {
@@ -214,8 +215,9 @@ class GoogleSheetAdapter(SheetPort):
         status: str,
         pr_number: int | None = None,
         pr_url: str | None = None,
+        action_text: str | None = None,
     ) -> None:
-        # Raw Issues 의 '# github issue' 컬럼에서 행을 찾아 처리 상태(+ PR 번호/링크) 갱신.
+        # Raw Issues '# github issue' 에서 행 찾아 처리 상태(+ PR 번호/링크/조치 내용) 갱신.
         def col(name: str) -> str:
             return chr(ord("A") + BUG_COLUMNS.index(name))
 
@@ -241,10 +243,23 @@ class GoogleSheetAdapter(SheetPort):
                             "values": [[pr_url or ""]],
                         }
                     )
+                if action_text:
+                    data.append(
+                        {
+                            "range": f"'{BUG_SHEET}'!{col('조치 내용')}{row}",
+                            "values": [[action_text]],
+                        }
+                    )
                 self._values.batchUpdate(
                     spreadsheetId=self._sid,
                     body={"valueInputOption": "RAW", "data": data},
                 ).execute()
-                logger.info("sheet_status_updated", issue=issue_number, status=status, pr=pr_number)
+                logger.info(
+                    "sheet_status_updated",
+                    issue=issue_number,
+                    status=status,
+                    pr=pr_number,
+                    has_action=bool(action_text),
+                )
                 return
         logger.warning("sheet_status_row_not_found", issue=issue_number)

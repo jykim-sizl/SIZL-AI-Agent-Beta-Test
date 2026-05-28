@@ -2,12 +2,14 @@
 export type IssueType = "bug" | "enhancement";
 
 // 버그: received(접수) → in_progress(재현O·PR생성) / cannot_reproduce(재현X·closed) → completed
+//       또는 withdrawn(분석 PR이 머지 없이 닫힘, ADR 2026-05-28)
 // 개선: reviewing / reviewed_rejected / reviewed_accepted
 export type IssueStatus =
   | "received"
   | "in_progress"
   | "cannot_reproduce"
   | "completed"
+  | "withdrawn"
   | "reviewing"
   | "reviewed_rejected"
   | "reviewed_accepted";

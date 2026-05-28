@@ -105,12 +105,13 @@ class IssueService:
 
     @staticmethod
     def _compose(sections: list[tuple[str, str | None]], footer: list[str]) -> str:
-        parts: list[str] = []
+        # 메타(제출자·이메일·영역 등)를 맨 위에 두어 첫 화면에 누가 무엇을 올렸는지 보이게 한다.
+        # (변수명은 historical reasons로 'footer'지만 위치는 본문 상단.)
+        parts: list[str] = list(footer)
+        parts.append("---")
         for heading, content in sections:
             if content:
                 parts.append(f"{heading}\n{content}\n")
-        parts.append("---")
-        parts.extend(footer)
         return "\n".join(parts)
 
     @staticmethod
