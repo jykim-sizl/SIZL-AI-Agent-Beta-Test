@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import datetime
 
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
@@ -10,6 +10,12 @@ from src.models.member_verify import MemberVerify
 # GoogleSheetAdapter가 빈칸으로 두게 한다(사람이 채운 값 보존). 상세 내용은 이슈 본문에.
 
 
+def _now_iso() -> str:
+    # ISO-8601 분 단위 ("YYYY-MM-DDTHH:MM"). 프론트가 'T' 를 공백으로 치환해 표시.
+    # 기존 YYYY-MM-DD 데이터와도 호환 (둘 다 startswith 'YYYY-MM-DD').
+    return datetime.now().isoformat(timespec="minutes")
+
+
 def bug_to_row(
     report: BugReport,
     member: MemberVerify,
@@ -17,7 +23,7 @@ def bug_to_row(
     today: str | None = None,
 ) -> dict[str, str]:
     return {
-        "등록일": today or date.today().isoformat(),
+        "등록일": today or _now_iso(),
         "등록자": member.name,
         "팀": member.team,
         "테스트 계정": report.test_account or "",
@@ -39,7 +45,7 @@ def enhancement_to_row(
     today: str | None = None,
 ) -> dict[str, str]:
     return {
-        "등록일": today or date.today().isoformat(),
+        "등록일": today or _now_iso(),
         "등록자": member.name,
         "팀": member.team,
         "테스트 영역": report.area,

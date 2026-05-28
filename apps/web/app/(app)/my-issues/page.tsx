@@ -9,6 +9,7 @@ import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { fetchIssues, fetchIssueDetail, updateIssue, closeIssue } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { getUser } from "@/lib/auth";
 import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
@@ -328,8 +329,8 @@ export default function MyIssuesPage() {
               <h3 className="mb-2 font-medium text-gray-900">{issue.title}</h3>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="rounded bg-gray-100 px-2 py-0.5">{issue.area}</span>
-                <span>등록 {issue.createdAt}</span>
-                <span>· 수정 {issue.updatedAt}</span>
+                <span>등록 {formatDateTime(issue.createdAt)}</span>
+                <span>· 수정 {formatDateTime(issue.updatedAt)}</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-xs">
                 <a href={issue.githubUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
