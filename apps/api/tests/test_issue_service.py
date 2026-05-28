@@ -39,6 +39,9 @@ class RecordingGitHub(GitHubPort):
     def close_issue(self, issue_number: int) -> None:  # pragma: no cover
         raise NotImplementedError
 
+    def list_issue_titles(self) -> dict[int, str]:  # pragma: no cover
+        return {}
+
 
 MEMBER = MemberVerify(email="jy_kim@sizl.co.kr", name="김정연", team="Neo Lab")
 

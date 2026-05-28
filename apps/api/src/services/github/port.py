@@ -17,6 +17,11 @@ class GitHubPort(ABC):
         ...
 
     @abstractmethod
+    def list_issue_titles(self) -> dict[int, str]:
+        """{issue_number: title} 일괄 조회. 목록 표시용 — 최근 N개만."""
+        ...
+
+    @abstractmethod
     def update_issue(self, issue_number: int, title: str, body: str) -> None:
         """이슈의 title/body 갱신."""
         ...

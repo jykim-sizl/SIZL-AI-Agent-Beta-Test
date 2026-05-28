@@ -11,6 +11,9 @@ class DummyGitHubAdapter(GitHubPort):
     def get_issue(self, issue_number: int) -> dict[str, str]:
         raise NotImplementedError("W2에서 구현")
 
+    def list_issue_titles(self) -> dict[int, str]:
+        raise NotImplementedError("W2에서 구현")
+
     def update_issue(self, issue_number: int, title: str, body: str) -> None:
         raise NotImplementedError("W2에서 구현")
 
