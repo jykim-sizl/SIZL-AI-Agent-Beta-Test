@@ -19,6 +19,7 @@ from src.services.sheet import SheetPort
 
 def _bug() -> BugReport:
     return BugReport(
+        title="제목 테스트",
         reporter_email="a@b.co",
         screen_url="https://app.example.com/x",
         area="Search",
@@ -30,6 +31,7 @@ def _bug() -> BugReport:
 
 def _enh() -> EnhancementRequest:
     return EnhancementRequest(
+        title="제목 테스트",
         reporter_email="a@b.co",
         screen_url="https://app.example.com/x",
         area="Dash",

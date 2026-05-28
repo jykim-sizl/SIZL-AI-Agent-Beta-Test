@@ -17,6 +17,7 @@ def bug_to_row(
     today: str | None = None,
 ) -> dict[str, str]:
     return {
+        "제목": report.title,
         "등록일": today or date.today().isoformat(),
         "등록자": member.name,
         "팀": member.team,
@@ -39,6 +40,7 @@ def enhancement_to_row(
     today: str | None = None,
 ) -> dict[str, str]:
     return {
+        "제목": report.title,
         "등록일": today or date.today().isoformat(),
         "등록자": member.name,
         "팀": member.team,

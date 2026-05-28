@@ -81,6 +81,7 @@ def client(sheet: FakeSheet) -> TestClient:
 def _bug_payload(email: str) -> dict[str, object]:
     # 프론트가 보내는 camelCase 페이로드 형태.
     return {
+        "title": "제목 테스트",
         "reporterEmail": email,
         "screenUrl": "https://app.example.com/search",
         "area": "Search",
@@ -92,6 +93,7 @@ def _bug_payload(email: str) -> dict[str, object]:
 
 def _enhancement_payload(email: str) -> dict[str, object]:
     return {
+        "title": "제목 테스트",
         "reporterEmail": email,
         "screenUrl": "https://app.example.com/dashboard",
         "area": "Dashboard",

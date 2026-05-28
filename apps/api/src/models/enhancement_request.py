@@ -30,6 +30,7 @@ class EnhancementRequest(BaseModel):
     )
 
     reporter_email: EmailStr  # 로그인 이메일 (Members 검증)
+    title: str = Field(min_length=1)  # 이슈 제목 (필수, GitHub/시트/목록 표시용)
     test_account: str | None = None  # 테스트 계정 (선택)
     screen_url: str = Field(min_length=1)  # 관련 화면 URL (필수)
     area: str = Field(min_length=1)

@@ -18,6 +18,7 @@ BUG_SHEET = "Raw Issues"
 # 시트에서 제외(이슈 본문·PR에는 유지). 헤더 순서와 1:1로 맞춰야 한다.
 BUG_COLUMNS = [
     "Issue ID",
+    "제목",
     "등록일",
     "등록자",
     "팀",
@@ -43,6 +44,7 @@ BUG_COLUMNS = [
 ENH_SHEET = "Enhancement"
 ENH_COLUMNS = [
     "Issue ID",
+    "제목",
     "등록일",
     "등록자",
     "팀",
@@ -132,12 +134,18 @@ class GoogleSheetAdapter(SheetPort):
             number = _parse_int(row.get(_ISSUE_COL, ""))
             if number is None:  # # github issue 없는 행(빈/운영자 행)은 건너뜀
                 continue
+            # 제목: 신규는 '제목' 컬럼, 옛 행은 발생 증상/세부 기능으로 fallback.
             if type_ == "bug":
-                title = row.get("발생 증상") or row.get("세부 기능") or "(제목 없음)"
+                title = (
+                    row.get("제목")
+                    or row.get("발생 증상")
+                    or row.get("세부 기능")
+                    or "(제목 없음)"
+                )
                 status = _BUG_STATUS.get(row.get(_STATUS_COL, ""), "received")
                 pr_number = _parse_int(row.get("PR 번호", ""))
             else:
-                title = row.get("세부 기능") or "(제목 없음)"
+                title = row.get("제목") or row.get("세부 기능") or "(제목 없음)"
                 status = _ENH_STATUS.get(row.get(_STATUS_COL, ""), "reviewing")
                 pr_number = None
             issues.append(

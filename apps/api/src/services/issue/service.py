@@ -61,11 +61,8 @@ class IssueService:
             f"- Severity: {report.severity.value}",
         ]
         body = self._compose(sections, footer)
-        summary = (
-            report.actual_behavior or report.detailed_feature or report.scenario_description or ""
-        )
         return IssueDraft(
-            title=self._title("bug", report.area, summary),
+            title=self._title("bug", report.area, report.title),
             body=body,
             labels=["bug", f"priority:{report.severity.value}"],
         )
@@ -86,7 +83,7 @@ class IssueService:
         ]
         body = self._compose(sections, footer)
         return IssueDraft(
-            title=self._title("enhance", report.area, report.feature_to_improve),
+            title=self._title("enhance", report.area, report.title),
             body=body,
             labels=["enhancement"],
         )

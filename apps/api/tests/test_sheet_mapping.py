@@ -10,6 +10,7 @@ MEMBER = MemberVerify(email="jy_kim@sizl.co.kr", name="김정연", team="Neo Lab
 
 def test_bug_to_row_fills_auto_columns_only() -> None:
     report = BugReport(
+        title="제목 테스트",
         reporter_email="jy_kim@sizl.co.kr",
         test_account="qa@company.com",
         screen_url="https://app.example.com/x",
@@ -35,6 +36,7 @@ def test_bug_to_row_fills_auto_columns_only() -> None:
 
 def test_enhancement_to_row() -> None:
     report = EnhancementRequest(
+        title="제목 테스트",
         reporter_email="jy_kim@sizl.co.kr",
         screen_url="https://app.example.com/y",
         area="Chat",
