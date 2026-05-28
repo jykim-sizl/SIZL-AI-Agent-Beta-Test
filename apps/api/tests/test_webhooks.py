@@ -62,7 +62,7 @@ class FakeGitHub:
     def add_comment(self, issue_number: int, body: str) -> None:
         self.comments.append((issue_number, body))
 
-    def close_issue(self, issue_number: int) -> None:
+    def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         self.closed.append(issue_number)
 
 

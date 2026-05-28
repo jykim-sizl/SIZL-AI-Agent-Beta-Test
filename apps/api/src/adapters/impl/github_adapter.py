@@ -118,7 +118,18 @@ class GitHubAppAdapter(GitHubPort):
         logger.info("github_image_uploaded", path=path, repo=self._issue_repo)
         return url
 
-    def close_issue(self, issue_number: int) -> None:
-        self._repo(self._issue_repo).get_issue(issue_number).edit(state="closed")
-        logger.info("github_issue_closed", number=issue_number, repo=self._issue_repo)
+    def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
+        issue = self._repo(self._issue_repo).get_issue(issue_number)
+        # state_reason 은 'completed' / 'not_planned' / 'reopened' / None.
+        # PyGithub edit 는 state_reason 키워드 지원.
+        if state_reason:
+            issue.edit(state="closed", state_reason=state_reason)
+        else:
+            issue.edit(state="closed")
+        logger.info(
+            "github_issue_closed",
+            number=issue_number,
+            repo=self._issue_repo,
+            reason=state_reason,
+        )
         self._invalidate_titles_cache()

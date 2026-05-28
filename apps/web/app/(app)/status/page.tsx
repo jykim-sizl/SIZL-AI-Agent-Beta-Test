@@ -10,16 +10,7 @@ import { cn } from "@/lib/utils";
 import { fetchIssues } from "@/lib/api";
 import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
-const STATUS_LABEL: Record<IssueStatus, string> = {
-  received: "접수",
-  in_progress: "진행중",
-  cannot_reproduce: "재현 불가",
-  completed: "완료",
-  withdrawn: "철회",
-  reviewing: "검토",
-  reviewed_rejected: "검토완료 · 미반영",
-  reviewed_accepted: "검토완료 · 반영",
-};
+// CSV/xlsx 다운로드는 구글 시트 export 로 위임 — STATUS_LABEL 은 더 이상 쓰지 않음.
 
 const TYPE_FILTERS: { value: IssueType | "all"; label: string }[] = [
   { value: "all", label: "전체" },
@@ -27,33 +18,11 @@ const TYPE_FILTERS: { value: IssueType | "all"; label: string }[] = [
   { value: "enhancement", label: "✨ 개선" },
 ];
 
-function downloadCsv(issues: Issue[]) {
-  const headers = ["번호", "유형", "제목", "영역", "우선순위", "상태", "제보자", "등록일", "수정일", "PR", "GitHub"];
-  const rows = issues.map((i) => [
-    i.number,
-    i.type === "bug" ? "버그" : "개선",
-    i.title,
-    i.area,
-    i.priority,
-    STATUS_LABEL[i.status],
-    i.reporter ?? "",
-    i.createdAt,
-    i.updatedAt,
-    i.prNumber ? `#${i.prNumber}` : "",
-    i.githubUrl,
-  ]);
-  const csv = [headers, ...rows]
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-    .join("\r\n");
-  // ﻿(BOM): Excel에서 한글 깨짐 방지
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `sizl-issues-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+// 운영 시트(원본) — 다운로드 버튼이 이 시트를 .xlsx 로 export 한다.
+// 시트는 Google 로그인 + 접근 권한 있는 사람만 받을 수 있음(운영자 그룹).
+// TODO: env 로 빼고 싶으면 NEXT_PUBLIC_GOOGLE_SHEET_ID 추가.
+const GOOGLE_SHEET_ID = "1PSTO5GFT0RljdTy_uJrl-JTHohspoXMy4-Lybhg9HtA";
+const GOOGLE_SHEET_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=xlsx`;
 
 export default function StatusPage() {
   const [issues, setIssues] = useState<Issue[] | null>(null);
@@ -61,6 +30,7 @@ export default function StatusPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
+  const [sort, setSort] = useState<"updated" | "number">("updated");
 
   // 실데이터: 백엔드 GET /issues → 전체 이슈. null = 로딩, [] = 에러/0건.
   useEffect(() => {
@@ -119,7 +89,7 @@ export default function StatusPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return issuesList.filter((i) => {
+    const matched = issuesList.filter((i) => {
       if (typeFilter !== "all" && i.type !== typeFilter) return false;
       if (!q) return true;
       return (
@@ -129,7 +99,25 @@ export default function StatusPage() {
         `#${i.number}`.includes(q)
       );
     });
-  }, [issuesList, query, typeFilter]);
+    // 최신이 위로. 'updated' = 수정일 desc(동률이면 번호 desc), 'number' = 번호 desc.
+    const cmp = (a: Issue, b: Issue): number => {
+      if (sort === "updated") {
+        const d = b.updatedAt.localeCompare(a.updatedAt);
+        return d !== 0 ? d : b.number - a.number;
+      }
+      return b.number - a.number;
+    };
+    return [...matched].sort(cmp);
+  }, [issuesList, query, typeFilter, sort]);
+
+  // 페이지네이션 (10개씩). 필터·검색·정렬 바뀌면 1페이지로 리셋.
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useEffect(() => {
+    setPage(0);
+  }, [query, typeFilter, sort]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -186,8 +174,8 @@ export default function StatusPage() {
       {/* 전체 이슈 목록 */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">전체 이슈</h3>
-        <Button variant="secondary" onClick={() => downloadCsv(filtered)}>
-          📥 엑셀 다운로드
+        <Button variant="secondary" onClick={() => window.open(GOOGLE_SHEET_EXPORT_URL, "_blank")}>
+          📥 구글 시트 다운로드 (.xlsx)
         </Button>
       </div>
 
@@ -199,7 +187,7 @@ export default function StatusPage() {
           onChange={(e) => setQuery(e.target.value)}
           className="w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {TYPE_FILTERS.map((f) => (
             <button
               key={f.value}
@@ -213,6 +201,26 @@ export default function StatusPage() {
               )}
             >
               {f.label}
+            </button>
+          ))}
+          {/* 정렬 (오른쪽 끝) — 최신이 위로 */}
+          <span className="ml-auto text-xs text-muted-foreground">정렬</span>
+          {[
+            { value: "updated" as const, label: "최신 수정순" },
+            { value: "number" as const, label: "번호순" },
+          ].map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setSort(s.value)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs transition-colors",
+                sort === s.value
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-border bg-white text-gray-600 hover:bg-gray-50",
+              )}
+            >
+              {s.label}
             </button>
           ))}
         </div>
@@ -245,10 +253,11 @@ export default function StatusPage() {
                 <th className="px-3 py-2 font-medium">우선순위</th>
                 <th className="px-3 py-2 font-medium">상태</th>
                 <th className="px-3 py-2 font-medium">제보자</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">등록일</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((issue) => (
+              {pageItems.map((issue) => (
                 <tr key={issue.number} className="border-t border-border hover:bg-gray-50">
                   <td className="px-3 py-2 text-muted-foreground">
                     <a href={issue.githubUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
@@ -261,12 +270,52 @@ export default function StatusPage() {
                   <td className="px-3 py-2"><PriorityBadge priority={issue.priority} /></td>
                   <td className="px-3 py-2"><StatusBadge status={issue.status} /></td>
                   <td className="px-3 py-2 text-gray-600">{issue.reporter}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{issue.createdAt}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {!loading && !loadError && filtered.length > PAGE_SIZE && (
+        <Pagination page={page} pageCount={pageCount} onPage={setPage} total={filtered.length} />
+      )}
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  pageCount,
+  onPage,
+  total,
+}: {
+  page: number;
+  pageCount: number;
+  onPage: (p: number) => void;
+  total: number;
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+      <button
+        type="button"
+        onClick={() => onPage(page - 1)}
+        disabled={page === 0}
+        className="rounded-md border border-border px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        ← 이전
+      </button>
+      <span className="px-2 text-muted-foreground">
+        {page + 1} / {pageCount} <span className="text-xs">({total}건)</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => onPage(page + 1)}
+        disabled={page >= pageCount - 1}
+        className="rounded-md border border-border px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        다음 →
+      </button>
     </div>
   );
 }
