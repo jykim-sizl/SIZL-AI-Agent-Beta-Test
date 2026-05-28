@@ -77,7 +77,7 @@ def test_bug_labels_include_bug_and_priority(severity: Severity, expected_label:
 
 def test_bug_body_contains_sections_and_reporter() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_bug(), MEMBER)
-    assert draft.title == "[Bug][Search] 검색 결과가 비어 있음"
+    assert draft.title == "bug(Search): 검색 결과가 비어 있음"
     for fragment in (
         "## 발생 증상",
         "## 재현 절차",
@@ -105,7 +105,7 @@ def test_image_attachment_embedded_in_body() -> None:
 def test_enhancement_label_is_enhancement_only() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_enh(), MEMBER)
     assert draft.labels == ["enhancement"]
-    assert draft.title == "[Enhancement][Dashboard] 팀별 필터 요청"
+    assert draft.title == "enhance(Dashboard): 팀별 필터 요청"
     assert "## 개선할 기능" in draft.body
     assert "우선순위: P3" in draft.body
 
@@ -115,7 +115,7 @@ def test_title_truncates_long_summary() -> None:
     report = _bug().model_copy(update={"actual_behavior": long})
     draft = IssueService(RecordingGitHub()).build_draft(report, MEMBER)
     assert draft.title.endswith("…")
-    assert len(draft.title) < len(f"[Bug][Search] {long}")
+    assert len(draft.title) < len(f"bug(Search): {long}")
 
 
 def test_submit_passes_draft_to_port_and_returns_number() -> None:
