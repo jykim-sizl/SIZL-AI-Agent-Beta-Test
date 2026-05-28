@@ -5,10 +5,11 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from src.api.deps import MemberServiceDep
+from src.api.deps import IssueServiceDep, MemberServiceDep, SheetDep
 from src.core.logging import logger
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
+from src.services.sheet.mapping import bug_to_row, enhancement_to_row
 
 router = APIRouter()
 
@@ -20,16 +21,32 @@ IssueSubmission = Annotated[BugReport | EnhancementRequest, Body()]
 class IssueAccepted(BaseModel):
     status: Literal["accepted"] = "accepted"
     kind: Literal["bug", "enhancement"]
+    issue_number: int
     email: str
     name: str
     team: str
 
 
 @router.post("/issues", response_model=IssueAccepted)
-def submit_issue(report: IssueSubmission, members: MemberServiceDep) -> IssueAccepted:
-    # 회원 검증을 가장 먼저 수행한다. 미등재면 MemberService가 403을 발생시킨다.
-    # GitHub Issue 생성 / Sheet 기록은 W2 — 여기서는 검증까지만 확정한다.
-    member = members.verify(str(report.tester_email))
-    kind: Literal["bug", "enhancement"] = "bug" if isinstance(report, BugReport) else "enhancement"
-    logger.info("issue_submission_accepted", kind=kind, email=member.email, area=report.area)
-    return IssueAccepted(kind=kind, email=member.email, name=member.name, team=member.team)
+def submit_issue(
+    report: IssueSubmission,
+    members: MemberServiceDep,
+    issues: IssueServiceDep,
+    sheet: SheetDep,
+) -> IssueAccepted:
+    # 1) 회원 검증 (미등재면 403). 검증 대상은 로그인 이메일(reporter_email).
+    member = members.verify(str(report.reporter_email))
+    # 2) GitHub 이슈 생성 → 번호 확보
+    number = issues.submit(report, member)
+    # 3) 시트 기입 (운영자 컬럼은 빈칸 유지). 버그/개선 탭 분리.
+    if isinstance(report, BugReport):
+        kind: Literal["bug", "enhancement"] = "bug"
+        sheet.append_bug(bug_to_row(report, member, number))
+    else:
+        kind = "enhancement"
+        sheet.append_enhancement(enhancement_to_row(report, member, number))
+
+    logger.info("issue_submitted", kind=kind, number=number, email=member.email, area=report.area)
+    return IssueAccepted(
+        kind=kind, issue_number=number, email=member.email, name=member.name, team=member.team
+    )

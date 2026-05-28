@@ -20,3 +20,12 @@ class MemberService:
         if member is None:
             raise MemberNotRegisteredError(email)
         return member
+
+    def register(self, *, name: str, email: str, team: str) -> MemberVerify:
+        # 자가등록(베타). 이미 등재면 기존 회원을 반환(멱등), 아니면 추가 후 반환.
+        existing = self._members.verify(email)
+        if existing is not None:
+            return existing
+        member = MemberVerify(email=email.strip().lower(), name=name.strip(), team=team.strip())
+        self._members.add(member)
+        return member

@@ -15,3 +15,8 @@ class MemberPort(ABC):
 
     @abstractmethod
     def verify(self, email: str) -> MemberVerify | None: ...
+
+    @abstractmethod
+    def add(self, member: MemberVerify) -> None:
+        """신규 회원을 명단에 추가한다(베타: Members.xlsx append). 캐시는 무효화한다."""
+        ...

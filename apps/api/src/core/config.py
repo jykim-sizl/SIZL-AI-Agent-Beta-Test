@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     github_app_id: str
     github_app_private_key_path: str
     github_webhook_secret: str
-    github_target_repo: str = "Sizl-Neolab/SIZL-Agentic-Brain-Issue-Track"
+    # 이슈는 이 repo에, PR은 App이 설치된 타깃 repo(QA_test)에 생성. (둘 다 App 설치됨)
+    github_issue_repo: str = "jykim-sizl/SIZL-AI-Agent-Beta-Test"
+    github_target_repo: str = "kimjy-st/QA_test"
 
     # Anthropic
     anthropic_api_key: str
@@ -26,6 +28,8 @@ class Settings(BaseSettings):
     # App
     app_env: str = "development"
     log_level: str = "INFO"
+    # CORS 허용 오리진 (콤마 구분). Phase A 로컬 웹.
+    cors_origins: str = "http://localhost:3000"
 
 
 settings = Settings()  # type: ignore[call-arg]

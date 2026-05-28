@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.models.attachment import AttachmentInput
 from src.models.bug_report import BugReport, Severity
 from src.models.enhancement_request import EnhancementRequest
 from src.models.issue_draft import IssueDraft
@@ -20,8 +21,11 @@ class RecordingGitHub(GitHubPort):
         self.created.append(draft)
         return 101
 
-    def create_empty_pr(self, issue_number: int, analysis: object) -> int:  # pragma: no cover
+    def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
+
+    def upload_image(self, filename: str, content: bytes) -> str:
+        return f"https://example.com/{filename}"
 
     def close_issue(self, issue_number: int) -> None:  # pragma: no cover
         raise NotImplementedError
@@ -32,21 +36,27 @@ MEMBER = MemberVerify(email="jy_kim@sizl.co.kr", name="김정연", team="Neo Lab
 
 def _bug(severity: Severity = Severity.P2) -> BugReport:
     return BugReport(
-        tester_email="jy_kim@sizl.co.kr",
+        reporter_email="jy_kim@sizl.co.kr",
+        test_account="qa@company.com",
+        screen_url="https://app.example.com/search",
         area="Search",
         severity=severity,
-        test_environment="macOS / Chrome",
-        description="검색 결과가 비어 있음",
-        reproduction_steps="1. 검색 2. 엔터",
-        image_url="https://example.com/shot.png",
+        os="macOS",
+        browser="Chrome",
+        actual_behavior="검색 결과가 비어 있음",
+        expected_behavior="결과가 표시되어야 함",
+        reproduction_steps=["검색", "엔터"],
+        attachments=[AttachmentInput(name="shot.png")],
     )
 
 
 def _enh() -> EnhancementRequest:
     return EnhancementRequest(
-        tester_email="jy_kim@sizl.co.kr",
+        reporter_email="jy_kim@sizl.co.kr",
+        screen_url="https://app.example.com/dashboard",
         area="Dashboard",
-        description="팀별 필터 요청",
+        priority="P3",
+        feature_to_improve="팀별 필터 요청",
         expected_behavior="우측 상단 필터 노출",
     )
 
@@ -68,21 +78,41 @@ def test_bug_labels_include_bug_and_priority(severity: Severity, expected_label:
 def test_bug_body_contains_sections_and_reporter() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_bug(), MEMBER)
     assert draft.title == "[Bug][Search] 검색 결과가 비어 있음"
-    for fragment in ("## 재현 절차", "## 테스트 환경", "김정연 (Neo Lab)", "Severity: P2"):
+    for fragment in (
+        "## 발생 증상",
+        "## 재현 절차",
+        "## 테스트 환경",
+        "김정연 (Neo Lab)",
+        "발생 화면: https://app.example.com/search",
+        "Severity: P2",
+        "shot.png",  # 첨부 파일명 포함
+    ):
         assert fragment in draft.body
-    assert "https://example.com/shot.png" in draft.body  # image_url 포함
+
+
+def test_image_attachment_embedded_in_body() -> None:
+    report = _bug().model_copy(
+        update={
+            "attachments": [
+                AttachmentInput(name="cap.png", data_url="data:image/png;base64,aGVsbG8=")
+            ]
+        }
+    )
+    draft = IssueService(RecordingGitHub()).build_draft(report, MEMBER)
+    assert "![cap.png](https://example.com/cap.png)" in draft.body
 
 
 def test_enhancement_label_is_enhancement_only() -> None:
     draft = IssueService(RecordingGitHub()).build_draft(_enh(), MEMBER)
     assert draft.labels == ["enhancement"]
     assert draft.title == "[Enhancement][Dashboard] 팀별 필터 요청"
-    assert "## 기대 동작" in draft.body
+    assert "## 개선할 기능" in draft.body
+    assert "우선순위: P3" in draft.body
 
 
-def test_title_truncates_long_description() -> None:
+def test_title_truncates_long_summary() -> None:
     long = "가" * 100
-    report = _bug().model_copy(update={"description": long})
+    report = _bug().model_copy(update={"actual_behavior": long})
     draft = IssueService(RecordingGitHub()).build_draft(report, MEMBER)
     assert draft.title.endswith("…")
     assert len(draft.title) < len(f"[Bug][Search] {long}")

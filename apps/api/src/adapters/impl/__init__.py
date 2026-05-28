@@ -3,6 +3,8 @@ from src.adapters.impl.dummy_issue import DummyIssueAdapter
 from src.adapters.impl.dummy_llm import DummyLLMAdapter
 from src.adapters.impl.dummy_sheet import DummySheetAdapter
 from src.adapters.impl.excel_member_adapter import ExcelMemberAdapter
+from src.adapters.impl.github_adapter import GitHubAppAdapter
+from src.adapters.impl.google_sheet_adapter import GoogleSheetAdapter
 
 __all__ = [
     "DummyGitHubAdapter",
@@ -10,4 +12,6 @@ __all__ = [
     "DummyLLMAdapter",
     "DummySheetAdapter",
     "ExcelMemberAdapter",
+    "GitHubAppAdapter",
+    "GoogleSheetAdapter",
 ]

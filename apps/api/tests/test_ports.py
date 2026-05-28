@@ -8,7 +8,6 @@ from src.adapters.impl import (
     DummyLLMAdapter,
     DummySheetAdapter,
 )
-from src.models.analysis_result import AnalysisResult
 from src.models.bug_report import BugReport, Severity
 from src.models.enhancement_request import EnhancementRequest
 from src.models.issue_draft import IssueDraft
@@ -20,30 +19,23 @@ from src.services.sheet import SheetPort
 
 def _bug() -> BugReport:
     return BugReport(
-        tester_email="a@b.co",
+        reporter_email="a@b.co",
+        screen_url="https://app.example.com/x",
         area="Search",
         severity=Severity.P3,
-        test_environment="env",
-        description="d",
-        reproduction_steps="s",
+        actual_behavior="d",
+        reproduction_steps=["s"],
     )
 
 
 def _enh() -> EnhancementRequest:
     return EnhancementRequest(
-        tester_email="a@b.co",
+        reporter_email="a@b.co",
+        screen_url="https://app.example.com/x",
         area="Dash",
-        description="d",
+        priority="P3",
+        feature_to_improve="d",
         expected_behavior="e",
-    )
-
-
-def _analysis() -> AnalysisResult:
-    return AnalysisResult(
-        cause_hypothesis="c",
-        reproduction_summary="r",
-        developer_guide="g",
-        original_issue_url="https://github.com/o/r/issues/1",
     )
 
 
@@ -80,7 +72,9 @@ def test_dummy_github_raises_not_implemented() -> None:
     with pytest.raises(NotImplementedError):
         adapter.create_issue(draft)
     with pytest.raises(NotImplementedError):
-        adapter.create_empty_pr(1, _analysis())
+        adapter.create_empty_pr(1, "title", "body")
+    with pytest.raises(NotImplementedError):
+        adapter.upload_image("a.png", b"x")
     with pytest.raises(NotImplementedError):
         adapter.close_issue(1)
 
