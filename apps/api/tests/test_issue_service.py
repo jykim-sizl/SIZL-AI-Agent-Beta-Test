@@ -36,7 +36,9 @@ class RecordingGitHub(GitHubPort):
     def upload_image(self, filename: str, content: bytes) -> str:
         return f"https://example.com/{filename}"
 
-    def close_issue(self, issue_number: int) -> None:  # pragma: no cover
+    def close_issue(
+        self, issue_number: int, state_reason: str | None = None
+    ) -> None:  # pragma: no cover
         raise NotImplementedError
 
     def list_issue_titles(self) -> dict[int, str]:  # pragma: no cover

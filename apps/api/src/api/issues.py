@@ -83,6 +83,15 @@ class IssuePatch(BaseModel):
     attachments: list[AttachmentInput] = Field(default_factory=list)
 
 
+@router.post("/issues/{number}/close")
+def close_issue_route(number: int, github: GitHubDep) -> dict[str, str]:
+    # 사용자가 '닫기' 버튼 누름 → 'not_planned' 로 close (= 미반영/철회).
+    # webhook(issues.closed) 가 시트 동기화·코멘트는 자동 처리.
+    github.close_issue(number, state_reason="not_planned")
+    logger.info("issue_closed_by_user", number=number)
+    return {"status": "closed"}
+
+
 @router.patch("/issues/{number}")
 def update_issue(number: int, patch: IssuePatch, github: GitHubDep) -> dict[str, str]:
     # title/body 둘 다 안전하게 보내도록 현재값과 머지.

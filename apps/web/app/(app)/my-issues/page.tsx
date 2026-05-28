@@ -8,7 +8,7 @@ import { AttachmentsField, type Attachment } from "@/components/attachments-fiel
 import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { fetchIssues, fetchIssueDetail, updateIssue } from "@/lib/api";
+import { fetchIssues, fetchIssueDetail, updateIssue, closeIssue } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { type Issue, type IssueStatus, type IssueType } from "@/lib/mock-issues";
 
@@ -128,6 +128,15 @@ export default function MyIssuesPage() {
     return [...matched].sort(cmp);
   }, [issuesList, query, typeFilter, statusFilter, sort]);
 
+  // 페이지네이션 (10개씩)
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useEffect(() => {
+    setPage(0);
+  }, [query, typeFilter, statusFilter, sort]);
+
   const statusFilterOptions = typeFilter === "all" ? [] : statusesForType(typeFilter);
 
   const changeType = (t: IssueType | "all") => {
@@ -135,10 +144,22 @@ export default function MyIssuesPage() {
     setStatusFilter("all");
   };
 
-  const removeIssue = (issue: Issue) => {
-    if (window.confirm(`#${issue.number} "${issue.title}" 이슈를 삭제할까요?`)) {
-      setIssues((prev) => (prev ?? []).filter((i) => i.number !== issue.number));
+  const closeIssueAction = async (issue: Issue) => {
+    if (
+      !window.confirm(
+        `#${issue.number} "${issue.title}" 이슈를 닫을까요?\n\n` +
+          `GitHub 이슈가 'not_planned' 상태로 닫히고,\n` +
+          `${issue.type === "bug" ? "시트 처리상태가 '철회'" : "시트 처리상태가 '검토완료 · 미반영'"}로 바뀝니다.`,
+      )
+    )
+      return;
+    const ok = await closeIssue(issue.number);
+    if (!ok) {
+      window.alert("닫기 실패 — 잠시 후 다시 시도해주세요.");
+      return;
     }
+    // webhook 이 시트/상태를 동기화하므로 잠깐 후 재로드해 반영 확인.
+    setTimeout(() => setReloadKey((k) => k + 1), 1500);
   };
 
   const openEdit = (issue: Issue) => {
@@ -296,7 +317,7 @@ export default function MyIssuesPage() {
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map((issue) => (
+          {pageItems.map((issue) => (
             <Card key={issue.number} className="transition-shadow hover:shadow-md">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-muted-foreground">#{issue.number}</span>
@@ -334,16 +355,19 @@ export default function MyIssuesPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeIssue(issue)}
+                    onClick={() => closeIssueAction(issue)}
                     className="rounded-md border border-border px-2.5 py-1 text-destructive hover:bg-destructive/10"
                   >
-                    삭제
+                    닫기
                   </button>
                 </div>
               </div>
             </Card>
           ))}
         </div>
+      )}
+      {!loading && !loadError && filtered.length > PAGE_SIZE && (
+        <Pagination page={page} pageCount={pageCount} onPage={setPage} total={filtered.length} />
       )}
 
       {/* 수정 모달 */}
@@ -485,6 +509,42 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+function Pagination({
+  page,
+  pageCount,
+  onPage,
+  total,
+}: {
+  page: number;
+  pageCount: number;
+  onPage: (p: number) => void;
+  total: number;
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+      <button
+        type="button"
+        onClick={() => onPage(page - 1)}
+        disabled={page === 0}
+        className="rounded-md border border-border px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        ← 이전
+      </button>
+      <span className="px-2 text-muted-foreground">
+        {page + 1} / {pageCount} <span className="text-xs">({total}건)</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => onPage(page + 1)}
+        disabled={page >= pageCount - 1}
+        className="rounded-md border border-border px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        다음 →
+      </button>
+    </div>
   );
 }
 

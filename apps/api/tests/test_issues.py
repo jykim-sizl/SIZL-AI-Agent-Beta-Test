@@ -31,9 +31,7 @@ class FakeGitHub(GitHubPort):
 
     def __init__(self) -> None:
         # 기본: 이슈 #101 이 이미 있는 셈 치고 get/update 테스트에 쓰임.
-        self.issues: dict[int, dict[str, str]] = {
-            101: {"title": "원래 제목", "body": "원래 본문"}
-        }
+        self.issues: dict[int, dict[str, str]] = {101: {"title": "원래 제목", "body": "원래 본문"}}
         self.comments: list[tuple[int, str]] = []
 
     def create_issue(self, draft: IssueDraft) -> int:
@@ -58,7 +56,9 @@ class FakeGitHub(GitHubPort):
     def upload_image(self, filename: str, content: bytes) -> str:  # pragma: no cover
         return f"https://example.com/{filename}"
 
-    def close_issue(self, issue_number: int) -> None:  # pragma: no cover
+    def close_issue(
+        self, issue_number: int, state_reason: str | None = None
+    ) -> None:  # pragma: no cover
         raise NotImplementedError
 
 

@@ -26,5 +26,5 @@ class DummyGitHubAdapter(GitHubPort):
     def upload_image(self, filename: str, content: bytes) -> str:
         raise NotImplementedError("W2에서 구현")
 
-    def close_issue(self, issue_number: int) -> None:
+    def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         raise NotImplementedError("W2에서 구현")

@@ -28,6 +28,17 @@ export async function fetchIssueDetail(
   }
 }
 
+// POST /issues/{n}/close — '닫기' 버튼. 'not_planned' 로 close (= 미반영/철회).
+// webhook 이 시트 동기화·자동 코멘트 처리.
+export async function closeIssue(number: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/issues/${number}/close`, { method: "POST" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // PATCH /issues/{n} — title/body 갱신 + 추가 의견·첨부를 본문 끝 섹션으로 append.
 // (추가 의견은 GitHub 코멘트가 아니라 본문 섹션으로 들어감 — 사용자 결정.)
 export async function updateIssue(
