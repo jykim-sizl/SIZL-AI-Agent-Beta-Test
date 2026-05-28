@@ -133,6 +133,24 @@ export default function BugReportPage() {
   const removeStep = (i: number) =>
     set("reproductionSteps", form.reproductionSteps.filter((_, idx) => idx !== i));
 
+  // Enter → 다음 단계로(혹은 마지막이면 새 단계 추가) + 새 입력에 포커스.
+  // (data-step 속성으로 input 식별; Input 컴포넌트가 ref 를 안 받아서 querySelector 사용)
+  const focusStep = (i: number) =>
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLInputElement>(`input[data-step="${i}"]`)?.focus(),
+    );
+  const onStepKeyDown = (i: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const isLast = i === form.reproductionSteps.length - 1;
+    if (isLast) {
+      addStep();
+      focusStep(i + 1);
+    } else {
+      focusStep(i + 1);
+    }
+  };
+
   const completed = useMemo<Record<string, boolean>>(
     () => ({
       summary: Boolean(form.title && form.screenUrl),
@@ -307,7 +325,13 @@ export default function BugReportPage() {
                   {form.reproductionSteps.map((step, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <span className="w-6 pt-2 text-sm text-muted-foreground">{i + 1}.</span>
-                      <Input placeholder="단계 설명" value={step} onChange={(e) => updateStep(i, e.target.value)} />
+                      <Input
+                        data-step={i}
+                        placeholder="단계 설명 (Enter → 다음 단계)"
+                        value={step}
+                        onChange={(e) => updateStep(i, e.target.value)}
+                        onKeyDown={onStepKeyDown(i)}
+                      />
                       {form.reproductionSteps.length > 1 && (
                         <button type="button" onClick={() => removeStep(i)} className="rounded p-2 text-destructive hover:bg-destructive/10" aria-label="단계 삭제">✕</button>
                       )}
