@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormField, Input, Textarea } from "@/components/ui/field";
+import { AttachmentsField, type Attachment } from "@/components/attachments-field";
 import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
 import { BugIcon, SparkleIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ export default function MyIssuesPage() {
   const [sort, setSort] = useState<"updated" | "number">("updated");
   const [editing, setEditing] = useState<Issue | null>(null);
   const [editComment, setEditComment] = useState("");
+  const [editAttachments, setEditAttachments] = useState<Attachment[]>([]);
   const [editLoading, setEditLoading] = useState(false); // 본문 prefill 중
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
@@ -124,6 +126,7 @@ export default function MyIssuesPage() {
     // 우선 메타만 채워 모달 띄우고 본문은 백엔드에서 비동기로 가져와 prefill.
     setEditing({ ...issue, body: issue.body ?? "" });
     setEditComment("");
+    setEditAttachments([]);
     setEditError("");
     setEditLoading(true);
     fetchIssueDetail(issue.number).then((detail) => {
@@ -147,7 +150,12 @@ export default function MyIssuesPage() {
     const ok = await updateIssue(editing.number, {
       title: editing.title,
       body: editing.body ?? "",
-      comment: editComment.trim() || undefined,
+      additionalComment: editComment.trim() || undefined,
+      attachments: editAttachments.length
+        ? editAttachments
+            .filter((a): a is Attachment & { dataUrl: string } => Boolean(a.dataUrl))
+            .map((a) => ({ name: a.name, dataUrl: a.dataUrl }))
+        : undefined,
     });
     if (!ok) {
       setEditError("저장 실패 — GitHub 반영에 실패했어요. 잠시 후 다시 시도해주세요.");
@@ -355,9 +363,9 @@ export default function MyIssuesPage() {
               </FormField>
 
               <FormField
-                label="추가 의견 (코멘트로 게시)"
+                label="추가 의견"
                 htmlFor="edit-comment"
-                hint="입력하면 GitHub 이슈에 별도 코멘트로 등록됩니다. (본문 수정과 무관)"
+                hint="본문 끝에 '## 추가 의견 (날짜)' 섹션으로 추가됩니다."
               >
                 <Textarea
                   id="edit-comment"
@@ -368,6 +376,19 @@ export default function MyIssuesPage() {
                   disabled={editSaving}
                 />
               </FormField>
+
+              <div>
+                <p className="mb-2 text-sm font-medium">
+                  첨부 추가 <span className="font-normal text-muted-foreground">
+                    (본문 끝에 ‘## 첨부 추가 (날짜)’ 섹션으로 추가)
+                  </span>
+                </p>
+                <AttachmentsField
+                  attachments={editAttachments}
+                  onAttachmentsChange={setEditAttachments}
+                  showConsoleLog={false}
+                />
+              </div>
             </div>
 
             {editError && (
