@@ -56,24 +56,43 @@ function downloadCsv(issues: Issue[]) {
 }
 
 export default function StatusPage() {
-  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
 
-  // 실데이터: 백엔드 GET /issues → 전체 이슈
+  // 실데이터: 백엔드 GET /issues → 전체 이슈. null = 로딩, [] = 에러/0건.
   useEffect(() => {
-    fetchIssues().then(setIssues);
-  }, []);
+    let cancelled = false;
+    setIssues(null);
+    setLoadError(false);
+    fetchIssues().then((all) => {
+      if (cancelled) return;
+      if (all === null) {
+        setLoadError(true);
+        setIssues([]);
+        return;
+      }
+      setIssues(all);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  const issuesList = useMemo(() => issues ?? [], [issues]);
+  const loading = issues === null;
 
   const stats = useMemo(() => {
-    const bug = issues.filter((i) => i.type === "bug");
-    const enh = issues.filter((i) => i.type === "enhancement");
+    const bug = issuesList.filter((i) => i.type === "bug");
+    const enh = issuesList.filter((i) => i.type === "enhancement");
     const by = (arr: Issue[], s: IssueStatus) => arr.filter((i) => i.status === s).length;
     const resolved = by(bug, "completed") + by(enh, "reviewed_accepted");
     return {
-      total: issues.length,
+      total: issuesList.length,
       resolved,
-      rate: issues.length ? Math.round((resolved / issues.length) * 100) : 0,
+      rate: issuesList.length ? Math.round((resolved / issuesList.length) * 100) : 0,
       inProgress: by(bug, "in_progress"),
       pending: by(bug, "received") + by(enh, "reviewing"),
       bugSegments: [
@@ -88,19 +107,19 @@ export default function StatusPage() {
         { label: "반영", value: by(enh, "reviewed_accepted"), color: "#10b981" },
       ],
     };
-  }, [issues]);
+  }, [issuesList]);
 
   const areaBars = useMemo(() => {
     const m = new Map<string, number>();
-    issues.forEach((i) => m.set(i.area, (m.get(i.area) ?? 0) + 1));
+    issuesList.forEach((i) => m.set(i.area, (m.get(i.area) ?? 0) + 1));
     const entries = [...m.entries()].sort((a, b) => b[1] - a[1]);
     const max = Math.max(...entries.map(([, c]) => c), 1);
     return { entries, max };
-  }, [issues]);
+  }, [issuesList]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return issues.filter((i) => {
+    return issuesList.filter((i) => {
       if (typeFilter !== "all" && i.type !== typeFilter) return false;
       if (!q) return true;
       return (
@@ -110,7 +129,7 @@ export default function StatusPage() {
         `#${i.number}`.includes(q)
       );
     });
-  }, [issues, query, typeFilter]);
+  }, [issuesList, query, typeFilter]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -199,7 +218,20 @@ export default function StatusPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <Card className="py-12 text-center text-sm text-muted-foreground">
+          이슈를 불러오는 중…
+        </Card>
+      ) : loadError ? (
+        <Card className="flex flex-col items-center gap-3 py-12 text-sm">
+          <span className="text-destructive">
+            이슈 목록을 불러오지 못했습니다 (서버 응답 실패).
+          </span>
+          <Button variant="secondary" onClick={() => setReloadKey((k) => k + 1)}>
+            다시 시도
+          </Button>
+        </Card>
+      ) : filtered.length === 0 ? (
         <Card className="py-12 text-center text-sm text-muted-foreground">조건에 맞는 이슈가 없습니다.</Card>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
