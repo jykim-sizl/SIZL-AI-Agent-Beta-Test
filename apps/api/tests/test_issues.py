@@ -75,6 +75,14 @@ class FakeSheet(SheetPort):
     def list_issues(self) -> list[dict[str, Any]]:  # pragma: no cover
         return []
 
+    def update_enhancement_status(  # pragma: no cover
+        self,
+        issue_number: int,
+        status: str,
+        action_text: str | None = None,
+    ) -> None:
+        raise NotImplementedError
+
     def update_pr_status(  # pragma: no cover
         self,
         issue_number: int,

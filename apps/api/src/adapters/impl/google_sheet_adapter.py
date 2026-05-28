@@ -263,3 +263,42 @@ class GoogleSheetAdapter(SheetPort):
                 )
                 return
         logger.warning("sheet_status_row_not_found", issue=issue_number)
+
+    def update_enhancement_status(
+        self,
+        issue_number: int,
+        status: str,
+        action_text: str | None = None,
+    ) -> None:
+        # Enhancement 탭의 '# github issue' 컬럼에서 행 찾아 처리 상태(+ 조치 내용) 갱신.
+        def col(name: str) -> str:
+            return chr(ord("A") + ENH_COLUMNS.index(name))
+
+        issue_letter = col(_ISSUE_COL)
+        resp = self._values.get(
+            spreadsheetId=self._sid, range=f"'{ENH_SHEET}'!{issue_letter}2:{issue_letter}"
+        ).execute()
+        for offset, cell in enumerate(resp.get("values", [])):
+            value = cell[0].strip().lstrip("#") if cell else ""
+            if value == str(issue_number):
+                row = offset + 2
+                data = [{"range": f"'{ENH_SHEET}'!{col(_STATUS_COL)}{row}", "values": [[status]]}]
+                if action_text:
+                    data.append(
+                        {
+                            "range": f"'{ENH_SHEET}'!{col('조치 내용')}{row}",
+                            "values": [[action_text]],
+                        }
+                    )
+                self._values.batchUpdate(
+                    spreadsheetId=self._sid,
+                    body={"valueInputOption": "RAW", "data": data},
+                ).execute()
+                logger.info(
+                    "sheet_enh_status_updated",
+                    issue=issue_number,
+                    status=status,
+                    has_action=bool(action_text),
+                )
+                return
+        logger.warning("sheet_enh_status_row_not_found", issue=issue_number)

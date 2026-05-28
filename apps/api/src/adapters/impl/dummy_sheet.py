@@ -24,3 +24,11 @@ class DummySheetAdapter(SheetPort):
         action_text: str | None = None,
     ) -> None:
         raise NotImplementedError("W2에서 구현")
+
+    def update_enhancement_status(
+        self,
+        issue_number: int,
+        status: str,
+        action_text: str | None = None,
+    ) -> None:
+        raise NotImplementedError("W2에서 구현")
