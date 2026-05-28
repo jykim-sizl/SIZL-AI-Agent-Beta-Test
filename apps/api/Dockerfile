@@ -19,4 +19,5 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ ./src/
 
 EXPOSE 8000
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Cloud Run은 $PORT(기본 8080)로 리슨을 요구. 로컬은 PORT 미설정 → 8000 유지.
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
