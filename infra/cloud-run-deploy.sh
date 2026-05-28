@@ -50,8 +50,8 @@ gcloud run deploy "$SERVICE" \
   --source apps/api \
   --region "$REGION" \
   --allow-unauthenticated \
-  --set-secrets="/secrets/app.pem=sizl-app-pem:latest,/secrets/sa.json=sizl-sa-json:latest,/secrets/Members.xlsx=sizl-members:latest,GITHUB_WEBHOOK_SECRET=sizl-webhook-secret:latest" \
-  --set-env-vars="GITHUB_APP_ID=${GITHUB_APP_ID},GITHUB_APP_PRIVATE_KEY_PATH=/secrets/app.pem,GITHUB_ISSUE_REPO=${GITHUB_ISSUE_REPO:-jykim-sizl/SIZL-AI-Agent-Beta-Test},GITHUB_TARGET_REPO=${GITHUB_TARGET_REPO},GOOGLE_SERVICE_ACCOUNT_JSON_PATH=/secrets/sa.json,GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID},MEMBERS_XLSX_PATH=/secrets/Members.xlsx,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL},CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000},APP_ENV=production,LOG_LEVEL=INFO"
+  --set-secrets="/secrets/app/app.pem=sizl-app-pem:latest,/secrets/sa/sa.json=sizl-sa-json:latest,/secrets/members/Members.xlsx=sizl-members:latest,GITHUB_WEBHOOK_SECRET=sizl-webhook-secret:latest" \
+  --set-env-vars="GITHUB_APP_ID=${GITHUB_APP_ID},GITHUB_APP_PRIVATE_KEY_PATH=/secrets/app/app.pem,GITHUB_ISSUE_REPO=${GITHUB_ISSUE_REPO:-jykim-sizl/SIZL-AI-Agent-Beta-Test},GITHUB_TARGET_REPO=${GITHUB_TARGET_REPO},GOOGLE_SERVICE_ACCOUNT_JSON_PATH=/secrets/sa/sa.json,GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID},MEMBERS_XLSX_PATH=/secrets/members/Members.xlsx,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL},CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000},APP_ENV=production,LOG_LEVEL=INFO"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 echo
