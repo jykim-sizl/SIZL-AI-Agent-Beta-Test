@@ -11,10 +11,11 @@ class PRService:
     후속 단계에서 본문에 채운다(ADR: Playwright 재현 게이팅). GitHubPort/SheetPort에만 의존.
     """
 
-    def __init__(self, github: GitHubPort, sheet: SheetPort, issue_repo: str) -> None:
+    def __init__(self, github: GitHubPort, sheet: SheetPort, issue_repo: str, pr_repo: str) -> None:
         self._github = github
         self._sheet = sheet
         self._issue_repo = issue_repo  # PR과 이슈가 다른 repo라 본문에 풀 링크로
+        self._pr_repo = pr_repo  # 시트에 적을 PR 링크 구성용
 
     def create_for_bug(self, issue_number: int, issue_title: str) -> int:
         title = f"[자동 분석] #{issue_number} {issue_title}".strip()
@@ -27,5 +28,6 @@ class PRService:
             f"\n관련 이슈: {issue_url}"
         )
         number = self._github.create_empty_pr(issue_number, title, body)
-        self._sheet.update_pr_status(issue_number, "진행중")
+        pr_url = f"https://github.com/{self._pr_repo}/pull/{number}"
+        self._sheet.update_pr_status(issue_number, "진행중", number, pr_url)
         return number

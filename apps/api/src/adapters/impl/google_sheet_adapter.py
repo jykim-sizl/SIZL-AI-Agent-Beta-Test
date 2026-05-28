@@ -39,6 +39,8 @@ BUG_COLUMNS = [
     "종료 여부",
     "# github issue",
     "비고",
+    "PR 번호",
+    "PR 링크",
 ]
 
 ENH_SHEET = "Enhancement"
@@ -142,27 +144,43 @@ class GoogleSheetAdapter(SheetPort):
             },
         ).execute()
 
-    def update_pr_status(self, issue_number: int, status: str) -> None:
-        # Raw Issues 의 '# github issue' 컬럼에서 행을 찾아 '처리 상태'만 갱신.
-        col_idx = BUG_COLUMNS.index(_ISSUE_COL)
-        status_idx = BUG_COLUMNS.index(_STATUS_COL)
-        col_letter = chr(ord("A") + col_idx)
-        status_letter = chr(ord("A") + status_idx)
+    def update_pr_status(
+        self,
+        issue_number: int,
+        status: str,
+        pr_number: int | None = None,
+        pr_url: str | None = None,
+    ) -> None:
+        # Raw Issues 의 '# github issue' 컬럼에서 행을 찾아 처리 상태(+ PR 번호/링크) 갱신.
+        def col(name: str) -> str:
+            return chr(ord("A") + BUG_COLUMNS.index(name))
 
+        issue_letter = col(_ISSUE_COL)
         resp = self._values.get(
-            spreadsheetId=self._sid, range=f"'{BUG_SHEET}'!{col_letter}2:{col_letter}"
+            spreadsheetId=self._sid, range=f"'{BUG_SHEET}'!{issue_letter}2:{issue_letter}"
         ).execute()
-        rows = resp.get("values", [])
-        for offset, cell in enumerate(rows):
+        for offset, cell in enumerate(resp.get("values", [])):
             value = cell[0].strip().lstrip("#") if cell else ""
             if value == str(issue_number):
-                row_num = offset + 2  # 데이터는 2행부터
-                self._values.update(
+                row = offset + 2  # 데이터는 2행부터
+                data = [{"range": f"'{BUG_SHEET}'!{col(_STATUS_COL)}{row}", "values": [[status]]}]
+                if pr_number is not None:
+                    data.append(
+                        {
+                            "range": f"'{BUG_SHEET}'!{col('PR 번호')}{row}",
+                            "values": [[f"#{pr_number}"]],
+                        }
+                    )
+                    data.append(
+                        {
+                            "range": f"'{BUG_SHEET}'!{col('PR 링크')}{row}",
+                            "values": [[pr_url or ""]],
+                        }
+                    )
+                self._values.batchUpdate(
                     spreadsheetId=self._sid,
-                    range=f"'{BUG_SHEET}'!{status_letter}{row_num}",
-                    valueInputOption="RAW",
-                    body={"values": [[status]]},
+                    body={"valueInputOption": "RAW", "data": data},
                 ).execute()
-                logger.info("sheet_status_updated", issue=issue_number, status=status)
+                logger.info("sheet_status_updated", issue=issue_number, status=status, pr=pr_number)
                 return
         logger.warning("sheet_status_row_not_found", issue=issue_number)

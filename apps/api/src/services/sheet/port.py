@@ -19,4 +19,10 @@ class SheetPort(ABC):
     def append_enhancement(self, row: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def update_pr_status(self, issue_number: int, status: str) -> None: ...
+    def update_pr_status(
+        self,
+        issue_number: int,
+        status: str,
+        pr_number: int | None = None,
+        pr_url: str | None = None,
+    ) -> None: ...
