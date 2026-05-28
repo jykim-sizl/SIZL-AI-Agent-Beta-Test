@@ -21,6 +21,15 @@ class RecordingGitHub(GitHubPort):
         self.created.append(draft)
         return 101
 
+    def get_issue(self, issue_number: int) -> dict[str, str]:  # pragma: no cover
+        raise NotImplementedError
+
+    def update_issue(self, issue_number: int, title: str, body: str) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    def add_comment(self, issue_number: int, body: str) -> None:  # pragma: no cover
+        raise NotImplementedError
+
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
 

@@ -30,4 +30,12 @@ class SheetPort(ABC):
         status: str,
         pr_number: int | None = None,
         pr_url: str | None = None,
-    ) -> None: ...
+        action_text: str | None = None,
+    ) -> None:
+        """이슈 행의 처리 상태(+ PR 번호/링크, + '조치 내용')를 갱신.
+
+        action_text 가 주어지면 '조치 내용' 컬럼에 기록한다.
+        (CLAUDE.md 운영자 컬럼 보호 규칙 예외 — 사용자 결정: PR close 시 자동 코멘트
+        텍스트를 시트에도 미러링. 운영자가 이후 덮어쓸 수 있음.)
+        """
+        ...

@@ -49,6 +49,13 @@ def get_issue_service() -> IssueService:
 IssueServiceDep = Annotated[IssueService, Depends(get_issue_service)]
 
 
+def get_github() -> GitHubPort:
+    return _github()
+
+
+GitHubDep = Annotated[GitHubPort, Depends(get_github)]
+
+
 @lru_cache
 def _sheet() -> SheetPort:
     return GoogleSheetAdapter(

@@ -15,6 +15,7 @@ const STATUS_LABEL: Record<IssueStatus, string> = {
   in_progress: "진행중",
   cannot_reproduce: "재현 불가",
   completed: "완료",
+  withdrawn: "철회",
   reviewing: "검토",
   reviewed_rejected: "검토완료 · 미반영",
   reviewed_accepted: "검토완료 · 반영",

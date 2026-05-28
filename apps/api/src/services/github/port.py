@@ -12,6 +12,21 @@ class GitHubPort(ABC):
         ...
 
     @abstractmethod
+    def get_issue(self, issue_number: int) -> dict[str, str]:
+        """이슈의 현재 title/body 반환 (수정 모달 prefill 용)."""
+        ...
+
+    @abstractmethod
+    def update_issue(self, issue_number: int, title: str, body: str) -> None:
+        """이슈의 title/body 갱신."""
+        ...
+
+    @abstractmethod
+    def add_comment(self, issue_number: int, body: str) -> None:
+        """이슈에 댓글 추가 (사용자가 남긴 '추가 의견' 용)."""
+        ...
+
+    @abstractmethod
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:
         """이슈용 빈 브랜치 + 빈 PR(코드 없음)을 만들고 PR 번호를 반환.
 

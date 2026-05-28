@@ -14,6 +14,36 @@ export async function fetchIssues(): Promise<Issue[]> {
   }
 }
 
+// GET /issues/{n} → GitHub 본문(title + body) — 수정 모달 prefill 용.
+export async function fetchIssueDetail(
+  number: number,
+): Promise<{ title: string; body: string } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/issues/${number}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as { title: string; body: string };
+  } catch {
+    return null;
+  }
+}
+
+// PATCH /issues/{n} → title/body 수정 + 선택적으로 코멘트 게시. GitHub 이슈에 반영.
+export async function updateIssue(
+  number: number,
+  patch: { title?: string; body?: string; comment?: string },
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/issues/${number}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export class SubmitError extends Error {
   constructor(
     public status: number,
