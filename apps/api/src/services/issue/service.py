@@ -38,25 +38,27 @@ class IssueService:
     def _build_bug(self, report: BugReport, member: MemberVerify) -> IssueDraft:
         env = " / ".join(filter(None, [report.os, report.browser, report.device, report.network]))
         steps = "\n".join(f"{i}. {s}" for i, s in enumerate(report.reproduction_steps, 1))
-        sections: list[tuple[str, str | None]] = [
-            ("## 발생 증상", report.actual_behavior),
-            ("## 예상 동작", report.expected_behavior),
-            ("## 상세 기능", report.detailed_feature),
-            ("## 테스트 시나리오", report.scenario_description),
-            ("## 재현 절차", steps or None),
-            ("## 입력 값", report.input_value),
-            ("## 실제 출력", report.actual_output),
-            ("## 예상 출력", report.expected_output),
-            ("## 테스트 환경", env or None),
-            ("## 콘솔/에러 로그", report.error_log),
-            ("## 첨부", self._attachments_md(report.attachments)),
-            ("## 추가 의견", report.additional_comments),
+        # 섹션 mode: "bullet"(기본·평문은 자동 bullet화) / "code"(``` 감쌈) / "raw"(그대로)
+        sections: list[tuple[str, str | None, str]] = [
+            ("## 발생 증상", report.actual_behavior, "bullet"),
+            ("## 예상 동작", report.expected_behavior, "bullet"),
+            ("## 상세 기능", report.detailed_feature, "bullet"),
+            ("## 테스트 시나리오", report.scenario_description, "bullet"),
+            ("## 재현 절차", steps or None, "bullet"),
+            ("## 입력 값", report.input_value, "bullet"),
+            ("## 실제 출력", report.actual_output, "bullet"),
+            ("## 예상 출력", report.expected_output, "bullet"),
+            ("## 테스트 환경", env or None, "bullet"),
+            ("## 콘솔/에러 로그", report.error_log, "code"),
+            ("## 첨부", self._attachments_md(report.attachments), "raw"),
+            ("## 추가 의견", report.additional_comments, "bullet"),
         ]
+        access = (report.access_time or "").replace("T", " ")  # 'YYYY-MM-DDTHH:MM' → 공백
         footer = [
             *self._reporter_footer(member, report.area),
             f"- 발생 화면: {report.screen_url}",
             *([f"- 테스트 계정: {report.test_account}"] if report.test_account else []),
-            *([f"- 접근 시간: {report.access_time}"] if report.access_time else []),
+            *([f"- 접근 시간: {access}"] if access else []),
             *([f"- 발생 빈도: {report.frequency}"] if report.frequency else []),
             f"- Severity: {report.severity.value}",
         ]
@@ -68,13 +70,13 @@ class IssueService:
         )
 
     def _build_enhancement(self, report: EnhancementRequest, member: MemberVerify) -> IssueDraft:
-        sections: list[tuple[str, str | None]] = [
-            ("## 개선할 기능", report.feature_to_improve),
-            ("## 현재 동작", report.current_behavior),
-            ("## 기대 동작", report.expected_behavior),
-            ("## 기대 효과", report.rationale),
-            ("## 첨부", self._attachments_md(report.attachments)),
-            ("## 추가 의견", report.additional_comments),
+        sections: list[tuple[str, str | None, str]] = [
+            ("## 개선할 기능", report.feature_to_improve, "bullet"),
+            ("## 현재 동작", report.current_behavior, "bullet"),
+            ("## 기대 동작", report.expected_behavior, "bullet"),
+            ("## 기대 효과", report.rationale, "bullet"),
+            ("## 첨부", self._attachments_md(report.attachments), "raw"),
+            ("## 추가 의견", report.additional_comments, "bullet"),
         ]
         footer = [
             *self._reporter_footer(member, report.area),
@@ -104,15 +106,54 @@ class IssueService:
         return "\n".join(lines)
 
     @staticmethod
-    def _compose(sections: list[tuple[str, str | None]], footer: list[str]) -> str:
-        # 메타(제출자·이메일·영역 등)를 맨 위에 두어 첫 화면에 누가 무엇을 올렸는지 보이게 한다.
-        # (변수명은 historical reasons로 'footer'지만 위치는 본문 상단.)
-        parts: list[str] = list(footer)
-        parts.append("---")
-        for heading, content in sections:
-            if content:
-                parts.append(f"{heading}\n{content}\n")
+    def _compose(sections: list[tuple[str, str | None, str]], footer: list[str]) -> str:
+        # '## 요약' 으로 시작해 메타(제출자·이메일·영역 등)를 상단에 두고, 본문 섹션은
+        # mode 에 따라 자동 bullet 화 / code-block 감쌈 / raw 그대로.
+        parts: list[str] = ["## 요약", *footer, "---"]
+        for heading, content, mode in sections:
+            if not content:
+                continue
+            if mode == "code":
+                body = f"```\n{content}\n```"
+            elif mode == "raw":
+                body = content
+            else:  # bullet (default)
+                body = IssueService._bulletize(content)
+            parts.append(f"{heading}\n{body}\n")
         return "\n".join(parts)
+
+    @staticmethod
+    def _bulletize(text: str) -> str:
+        # 평문 줄에 '- ' prefix 를 붙여 GitHub 에서 bullet 으로 렌더되게 한다.
+        # 이미 마크다운(리스트/제목/인용/이미지/코드블록/숫자목록)이면 보존.
+        markers = ("- ", "* ", "+ ", "# ", "> ", "![", "|", "<")
+        result: list[str] = []
+        in_code = False
+        for raw in text.splitlines():
+            line = raw.rstrip()
+            if not line.strip():
+                # 빈 줄: bullet 그룹 사이 구분으로 둠 (단, 연속된 빈 줄은 1줄로)
+                if result and result[-1] != "":
+                    result.append("")
+                continue
+            stripped = line.lstrip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                result.append(line)
+                continue
+            if in_code:
+                result.append(line)
+                continue
+            if any(stripped.startswith(m) for m in markers):
+                result.append(line)
+                continue
+            # 1. ~ 99. 숫자 리스트
+            head = stripped.split(" ", 1)[0]
+            if head.endswith(".") and head[:-1].isdigit():
+                result.append(line)
+                continue
+            result.append(f"- {line}")
+        return "\n".join(result)
 
     @staticmethod
     def _reporter_footer(member: MemberVerify, area: str) -> list[str]:
