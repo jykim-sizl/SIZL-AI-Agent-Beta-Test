@@ -173,7 +173,19 @@ export default function BugReportPage() {
     if (form.testArea === "기타" && !form.testAreaEtc.trim())
       e.testAreaEtc = "테스트 영역을 직접 입력해주세요.";
     setErrors(e);
-    return Object.keys(e).length === 0;
+    const firstId = Object.keys(e)[0];
+    if (firstId) {
+      // 다음 paint 후 DOM 에 에러 메시지 렌더 → 첫 에러 필드로 스크롤·포커스.
+      requestAnimationFrame(() => {
+        const el = document.getElementById(firstId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          (el as HTMLInputElement).focus({ preventScroll: true });
+        }
+      });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
