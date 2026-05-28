@@ -35,13 +35,12 @@ export default function LoginPage() {
       setUser({ email: member.email, name: member.name, team: member.team });
       router.push("/select");
     } catch (err) {
-      // 미등록(403) → 등록 페이지로 이동 (이메일·이름 넘김). 그 외는 에러 표시.
-      if (err instanceof SubmitError && err.status === 403) {
-        const q = new URLSearchParams({ email: email.trim(), name: name.trim() });
-        router.push(`/register?${q.toString()}`);
-        return;
-      }
-      setError(err instanceof SubmitError ? err.message : "로그인 중 오류가 발생했습니다.");
+      // 자가등록 비활성화: 미등록(403)이어도 안내만, 등록 페이지로 보내지 않음.
+      setError(
+        err instanceof SubmitError
+          ? err.message
+          : "로그인 중 오류가 발생했습니다.",
+      );
       setLoading(false);
     }
   };

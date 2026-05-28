@@ -65,7 +65,7 @@ class IssueService:
             report.actual_behavior or report.detailed_feature or report.scenario_description or ""
         )
         return IssueDraft(
-            title=self._title("Bug", report.area, summary),
+            title=self._title("bug", report.area, summary),
             body=body,
             labels=["bug", f"priority:{report.severity.value}"],
         )
@@ -86,7 +86,7 @@ class IssueService:
         ]
         body = self._compose(sections, footer)
         return IssueDraft(
-            title=self._title("Enhancement", report.area, report.feature_to_improve),
+            title=self._title("enhance", report.area, report.feature_to_improve),
             body=body,
             labels=["enhancement"],
         )
@@ -125,8 +125,9 @@ class IssueService:
         ]
 
     @staticmethod
-    def _title(kind: str, area: str, summary: str) -> str:
+    def _title(type_: str, area: str, summary: str) -> str:
+        # 기존 repo 컨벤션: bug(영역): 요약 / enhance(영역): 요약
         text = summary.splitlines()[0].strip() if summary.strip() else "(제목 없음)"
         if len(text) > _TITLE_MAX:
             text = text[: _TITLE_MAX - 1].rstrip() + "…"
-        return f"[{kind}][{area}] {text}"
+        return f"{type_}({area}): {text}"
