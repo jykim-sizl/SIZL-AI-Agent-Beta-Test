@@ -4,12 +4,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Request
 
-from src.api.deps import GitHubDep, PRServiceDep, SheetDep
+from src.api.deps import GitHubDep, LLMDep, PRServiceDep, SheetDep
 from src.core.config import settings
 from src.core.exceptions import WebhookVerificationError
 from src.core.logging import logger
 from src.core.security import verify_github_signature
 from src.services.github import GitHubPort
+from src.services.llm import LLMPort
+from src.services.llm.port import PRCloseContext
 from src.services.pr import PRService
 from src.services.sheet import SheetPort
 
@@ -24,6 +26,7 @@ async def receive_webhook(
     pr: PRServiceDep,
     sheet: SheetDep,
     github: GitHubDep,
+    llm: LLMDep,
     x_hub_signature_256: Annotated[str | None, Header()] = None,
     x_github_event: Annotated[str | None, Header()] = None,
     x_github_delivery: Annotated[str | None, Header()] = None,
@@ -55,7 +58,7 @@ async def receive_webhook(
         elif x_github_event == "issues" and action == "closed":
             _handle_issue_closed(payload, sheet)
         elif x_github_event == "pull_request" and action == "closed":
-            _handle_pr_closed(payload, sheet, github)
+            _handle_pr_closed(payload, sheet, github, llm)
     except Exception as exc:  # noqa: BLE001 - 핸들러 실패가 웹훅 ACK(200)을 막지 않게
         logger.error(
             "github_webhook_handler_failed",
@@ -106,11 +109,13 @@ def _handle_issue_opened(payload: dict[str, Any], pr: PRService) -> None:
     pr.create_for_bug(number, str(issue.get("title", "")))
 
 
-def _handle_pr_closed(payload: dict[str, Any], sheet: SheetPort, github: GitHubPort) -> None:
+def _handle_pr_closed(
+    payload: dict[str, Any], sheet: SheetPort, github: GitHubPort, llm: LLMPort
+) -> None:
     # 우리가 만든 auto/issue-N 브랜치의 PR 만 처리.
-    # - merge 됨   → 이슈에 '완료' 코멘트 + 시트 '완료' + 이슈 close
-    # - merge 안됨 → 이슈에 '철회' 코멘트 + 시트 '철회' + 이슈 close (ADR)
-    # (LLM 풍부 요약은 Stage 2 — 현재는 템플릿)
+    # - merge 됨   → 이슈 코멘트 + 시트 '완료' + 이슈 close
+    # - merge 안됨 → 이슈 코멘트 + 시트 '철회' + 이슈 close
+    # 코멘트는 LLM(Gemini) 풍부화 시도 → 실패/키없음 시 템플릿 fallback.
     pull = payload.get("pull_request") or {}
     ref = (pull.get("head") or {}).get("ref", "")
     match = _AUTO_BRANCH.match(ref if isinstance(ref, str) else "")
@@ -122,9 +127,29 @@ def _handle_pr_closed(payload: dict[str, Any], sheet: SheetPort, github: GitHubP
     pr_number = pull.get("number")
     pr_url = pull.get("html_url") or ""
     merge_sha = (pull.get("merge_commit_sha") or "")[:7]
-    comment = _format_close_comment(issue_number, merged, pr_number, pr_url, merge_sha)
+    # LLM 풍부 요약 시도 — 이슈 본문은 GitHub 에서 가져옴(폼 데이터 풀로).
+    try:
+        issue_data = github.get_issue(issue_number)
+    except Exception as exc:  # noqa: BLE001 - LLM 입력용, 실패해도 템플릿 fallback
+        logger.warning("issue_fetch_for_llm_failed", issue=issue_number, error=str(exc))
+        issue_data = {"title": "", "body": ""}
+    ctx = PRCloseContext(
+        issue_number=issue_number,
+        issue_title=issue_data.get("title", ""),
+        issue_body=issue_data.get("body", ""),
+        pr_number=pr_number if isinstance(pr_number, int) else None,
+        pr_title=str(pull.get("title", "")),
+        pr_body=str(pull.get("body", "") or ""),
+        pr_url=pr_url,
+        merged=merged,
+        merge_commit_sha=merge_sha,
+    )
+    llm_summary = llm.summarize_pr_close(ctx)
+    comment = llm_summary or _format_close_comment(
+        issue_number, merged, pr_number, pr_url, merge_sha
+    )
     github.add_comment(issue_number, comment)
-    # 같은 텍스트를 시트 '조치 내용'에도 미러링 (Stage 2 에서 LLM 요약으로 교체)
+    # 같은 텍스트를 시트 '조치 내용'에도 미러링.
     sheet.update_pr_status(issue_number, status, action_text=comment)
     github.close_issue(issue_number)
 

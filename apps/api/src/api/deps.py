@@ -5,10 +5,18 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from src.adapters.impl import ExcelMemberAdapter, GitHubAppAdapter, GoogleSheetAdapter
+from src.adapters.impl import (
+    DummyLLMAdapter,
+    ExcelMemberAdapter,
+    GeminiAdapter,
+    GitHubAppAdapter,
+    GoogleSheetAdapter,
+)
 from src.core.config import settings
+from src.core.logging import logger
 from src.services.github import GitHubPort
 from src.services.issue import IssueService
+from src.services.llm import LLMPort
 from src.services.member import MemberService
 from src.services.pr import PRService
 from src.services.sheet import SheetPort
@@ -54,6 +62,24 @@ def get_github() -> GitHubPort:
 
 
 GitHubDep = Annotated[GitHubPort, Depends(get_github)]
+
+
+@lru_cache
+def _llm() -> LLMPort:
+    # GEMINI_API_KEY 가 있으면 Gemini, 없으면 Dummy (코멘트 풍부화 없이 템플릿 fallback).
+    key = (settings.gemini_api_key or "").strip()
+    if key:
+        logger.info("llm_adapter_selected", impl="gemini", model=settings.gemini_model)
+        return GeminiAdapter(key, settings.gemini_model)
+    logger.info("llm_adapter_selected", impl="dummy", reason="GEMINI_API_KEY missing")
+    return DummyLLMAdapter()
+
+
+def get_llm() -> LLMPort:
+    return _llm()
+
+
+LLMDep = Annotated[LLMPort, Depends(get_llm)]
 
 
 @lru_cache
