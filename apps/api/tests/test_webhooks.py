@@ -135,7 +135,8 @@ def test_enhancement_issue_opened_no_pr(
     assert pr.created == []
 
 
-def test_p4_bug_excluded_from_pr(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:
+def test_p4_bug_also_triggers_pr(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:
+    # 사용자 결정(2026-05-27): P4 버그도 PR 생성.
     pr, _ = fakes
     payload = {
         "action": "opened",
@@ -146,7 +147,7 @@ def test_p4_bug_excluded_from_pr(client: TestClient, fakes: tuple[FakePR, FakeSh
         },
     }
     assert _post(client, payload, "issues").status_code == 200
-    assert pr.created == []
+    assert pr.created == [(44, "사소")]
 
 
 def test_pr_merged_updates_sheet(client: TestClient, fakes: tuple[FakePR, FakeSheet]) -> None:

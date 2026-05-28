@@ -11,32 +11,34 @@ from src.services.github.port import GitHubPort
 
 
 class GitHubAppAdapter(GitHubPort):
-    """GitHubPort 실구현. GitHub App(설치 토큰)으로 이슈를 생성/종료한다.
+    """GitHubPort 실구현. GitHub App(설치 토큰)으로 이슈/ PR을 처리한다.
 
-    이슈는 App이 설치된 issue_repo에 만든다. 빈 PR 생성(create_empty_pr)은
-    Playwright 재현 게이팅 + 공동 target repo 대상이라 별도 단계에서 구현한다(ADR).
+    이슈는 issue_repo(이 repo)에, PR/빈 브랜치는 pr_repo(타깃 repo)에 만든다.
+    App은 두 repo 모두에 설치돼 있어야 한다(repo별 설치 토큰을 각각 발급).
     """
 
-    def __init__(self, app_id: str, private_key_path: str, issue_repo: str) -> None:
-        self._repo_full = issue_repo
+    def __init__(self, app_id: str, private_key_path: str, issue_repo: str, pr_repo: str) -> None:
+        self._issue_repo = issue_repo
+        self._pr_repo = pr_repo
         private_key = Path(private_key_path).read_text(encoding="utf-8")
         self._integration = GithubIntegration(auth=Auth.AppAuth(int(app_id), private_key))
 
-    def _repo(self) -> Repository:
-        owner, name = self._repo_full.split("/", 1)
+    def _repo(self, full_name: str) -> Repository:
+        owner, name = full_name.split("/", 1)
         installation = self._integration.get_repo_installation(owner, name)
         gh = self._integration.get_github_for_installation(installation.id)
-        return gh.get_repo(self._repo_full)
+        return gh.get_repo(full_name)
 
     def create_issue(self, draft: IssueDraft) -> int:
-        issue = self._repo().create_issue(title=draft.title, body=draft.body, labels=draft.labels)
-        logger.info("github_issue_created", number=issue.number, repo=self._repo_full)
+        repo = self._repo(self._issue_repo)
+        issue = repo.create_issue(title=draft.title, body=draft.body, labels=draft.labels)
+        logger.info("github_issue_created", number=issue.number, repo=self._issue_repo)
         return issue.number
 
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:
-        # 이슈와 같은 repo에 빈 브랜치 + 빈 PR(코드 없음) 생성. (ADR: 베타 PR=이 repo)
-        repo = self._repo()
-        owner = self._repo_full.split("/", 1)[0]
+        # 타깃 repo(pr_repo)에 빈 브랜치 + 빈 PR(코드 없음) 생성. (App이 pr_repo에 설치됨)
+        repo = self._repo(self._pr_repo)
+        owner = self._pr_repo.split("/", 1)[0]
         branch = f"auto/issue-{issue_number}"
 
         # 웹훅 재전송 대비 멱등: 같은 head로 이미 PR이 있으면 그 번호 반환.
@@ -54,11 +56,9 @@ class GitHubAppAdapter(GitHubPort):
         )
         repo.create_git_ref(ref=f"refs/heads/{branch}", sha=empty_commit.sha)
         pull = repo.create_pull(title=title, body=body, base=default, head=branch)
-        logger.info(
-            "github_pr_created", number=pull.number, issue=issue_number, repo=self._repo_full
-        )
+        logger.info("github_pr_created", number=pull.number, issue=issue_number, repo=self._pr_repo)
         return pull.number
 
     def close_issue(self, issue_number: int) -> None:
-        self._repo().get_issue(issue_number).edit(state="closed")
-        logger.info("github_issue_closed", number=issue_number, repo=self._repo_full)
+        self._repo(self._issue_repo).get_issue(issue_number).edit(state="closed")
+        logger.info("github_issue_closed", number=issue_number, repo=self._issue_repo)

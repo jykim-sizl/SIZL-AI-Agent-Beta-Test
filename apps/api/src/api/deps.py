@@ -33,6 +33,7 @@ def _github() -> GitHubPort:
         settings.github_app_id,
         settings.github_app_private_key_path,
         settings.github_issue_repo,
+        settings.github_target_repo,
     )
 
 
@@ -64,7 +65,7 @@ SheetDep = Annotated[SheetPort, Depends(get_sheet)]
 
 @lru_cache
 def _pr_service() -> PRService:
-    return PRService(_github(), _sheet())
+    return PRService(_github(), _sheet(), settings.github_issue_repo)
 
 
 def get_pr_service() -> PRService:

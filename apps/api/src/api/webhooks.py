@@ -64,10 +64,10 @@ async def receive_webhook(
 
 
 def _handle_issue_opened(payload: dict[str, Any], pr: PRService) -> None:
-    # ADR-006: bug 라벨만 분석 PR. priority:P4는 자동 PR 대상에서 제외.
+    # ADR-006: bug 라벨이면 모두 분석 PR 대상 (P4 포함 — 사용자 결정 2026-05-27).
     issue = payload.get("issue") or {}
     labels = {lbl.get("name") for lbl in issue.get("labels", []) if isinstance(lbl, dict)}
-    if "bug" not in labels or "priority:P4" in labels:
+    if "bug" not in labels:
         return
     number = issue.get("number")
     if not isinstance(number, int):
