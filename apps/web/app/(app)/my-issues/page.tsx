@@ -43,7 +43,10 @@ function statusesForType(type: IssueType): IssueStatus[] {
 }
 
 export default function MyIssuesPage() {
-  const [issues, setIssues] = useState<Issue[]>([]);
+  // null = 로딩 중, [] = 0건, [...] = 데이터, error = 실패
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "all">("all");
@@ -55,23 +58,39 @@ export default function MyIssuesPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
-  // 실데이터: 백엔드 GET /issues → 내가 제출한 것(등록자=로그인 이름)만
+  // 실데이터: 백엔드 GET /issues → 내가 제출한 것(등록자=로그인 이름)만.
+  // reloadKey 가 바뀌면 재시도. fetch 실패는 loadError 로 표시.
   useEffect(() => {
+    let cancelled = false;
+    setIssues(null);
+    setLoadError(false);
     const user = getUser();
     fetchIssues().then((all) => {
+      if (cancelled) return;
+      if (all === null) {
+        setLoadError(true);
+        setIssues([]);
+        return;
+      }
       setIssues(user ? all.filter((i) => i.reporter === user.name) : all);
     });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  const issuesList = useMemo(() => issues ?? [], [issues]);
+  const loading = issues === null;
 
   const kpi = useMemo(() => {
-    const bug = issues.filter((i) => i.type === "bug");
-    const enh = issues.filter((i) => i.type === "enhancement");
+    const bug = issuesList.filter((i) => i.type === "bug");
+    const enh = issuesList.filter((i) => i.type === "enhancement");
     const countBy = (arr: Issue[], s: IssueStatus) => arr.filter((i) => i.status === s).length;
     const bugDone = countBy(bug, "completed");
     const enhAccepted = countBy(enh, "reviewed_accepted");
     const resolved = bugDone + enhAccepted; // 완료 + 반영
     return {
-      total: issues.length,
+      total: issuesList.length,
       bug: bug.length,
       enh: enh.length,
       bugReceived: countBy(bug, "received"),
@@ -82,13 +101,13 @@ export default function MyIssuesPage() {
       enhRejected: countBy(enh, "reviewed_rejected"),
       enhAccepted,
       resolved,
-      rate: issues.length ? Math.round((resolved / issues.length) * 100) : 0,
+      rate: issuesList.length ? Math.round((resolved / issuesList.length) * 100) : 0,
     };
-  }, [issues]);
+  }, [issuesList]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matched = issues.filter((i) => {
+    const matched = issuesList.filter((i) => {
       if (typeFilter !== "all" && i.type !== typeFilter) return false;
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
       if (!q) return true;
@@ -107,7 +126,7 @@ export default function MyIssuesPage() {
       return b.number - a.number;
     };
     return [...matched].sort(cmp);
-  }, [issues, query, typeFilter, statusFilter, sort]);
+  }, [issuesList, query, typeFilter, statusFilter, sort]);
 
   const statusFilterOptions = typeFilter === "all" ? [] : statusesForType(typeFilter);
 
@@ -118,7 +137,7 @@ export default function MyIssuesPage() {
 
   const removeIssue = (issue: Issue) => {
     if (window.confirm(`#${issue.number} "${issue.title}" 이슈를 삭제할까요?`)) {
-      setIssues((prev) => prev.filter((i) => i.number !== issue.number));
+      setIssues((prev) => (prev ?? []).filter((i) => i.number !== issue.number));
     }
   };
 
@@ -164,7 +183,7 @@ export default function MyIssuesPage() {
     }
     const today = new Date().toISOString().slice(0, 10);
     setIssues((prev) =>
-      prev.map((i) =>
+      (prev ?? []).map((i) =>
         i.number === editing.number
           ? { ...i, title: editing.title, body: editing.body, updatedAt: today }
           : i,
@@ -257,8 +276,21 @@ export default function MyIssuesPage() {
         </div>
       </div>
 
-      {/* 목록 */}
-      {filtered.length === 0 ? (
+      {/* 목록 — 로딩 / 에러 / 빈목록 / 정상 4상태 분기 */}
+      {loading ? (
+        <Card className="py-12 text-center text-sm text-muted-foreground">
+          이슈를 불러오는 중…
+        </Card>
+      ) : loadError ? (
+        <Card className="flex flex-col items-center gap-3 py-12 text-sm">
+          <span className="text-destructive">
+            이슈 목록을 불러오지 못했습니다 (서버 응답 실패).
+          </span>
+          <Button variant="secondary" onClick={() => setReloadKey((k) => k + 1)}>
+            다시 시도
+          </Button>
+        </Card>
+      ) : filtered.length === 0 ? (
         <Card className="py-12 text-center text-sm text-muted-foreground">
           조건에 맞는 이슈가 없습니다.
         </Card>

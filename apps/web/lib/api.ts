@@ -3,14 +3,15 @@ import type { Issue } from "@/lib/mock-issues";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-// GET /issues → 구글 시트 기반 실제 이슈 목록. 실패 시 빈 배열(페이지가 안 깨지게).
-export async function fetchIssues(): Promise<Issue[]> {
+// GET /issues → 구글 시트 기반 실제 이슈 목록.
+// 실패는 null 로 구분 (호출자가 '에러' vs '0건' 구분 가능하게).
+export async function fetchIssues(): Promise<Issue[] | null> {
   try {
     const res = await fetch(`${API_BASE}/issues`, { cache: "no-store" });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     return (await res.json()) as Issue[];
   } catch {
-    return [];
+    return null;
   }
 }
 
