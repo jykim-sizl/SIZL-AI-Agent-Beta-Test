@@ -46,6 +46,7 @@ export default function MyIssuesPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "all">("all");
+  const [sort, setSort] = useState<"updated" | "number">("updated");
   const [editing, setEditing] = useState<Issue | null>(null);
   const [editComment, setEditComment] = useState("");
   const [editLoading, setEditLoading] = useState(false); // 본문 prefill 중
@@ -85,7 +86,7 @@ export default function MyIssuesPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return issues.filter((i) => {
+    const matched = issues.filter((i) => {
       if (typeFilter !== "all" && i.type !== typeFilter) return false;
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
       if (!q) return true;
@@ -95,7 +96,16 @@ export default function MyIssuesPage() {
         `#${i.number}`.includes(q)
       );
     });
-  }, [issues, query, typeFilter, statusFilter]);
+    // 최신이 위로. 'updated' 는 수정일 desc(동률이면 번호 desc), 'number' 는 번호 desc.
+    const cmp = (a: Issue, b: Issue): number => {
+      if (sort === "updated") {
+        const d = b.updatedAt.localeCompare(a.updatedAt);
+        return d !== 0 ? d : b.number - a.number;
+      }
+      return b.number - a.number;
+    };
+    return [...matched].sort(cmp);
+  }, [issues, query, typeFilter, statusFilter, sort]);
 
   const statusFilterOptions = typeFilter === "all" ? [] : statusesForType(typeFilter);
 
@@ -228,6 +238,14 @@ export default function MyIssuesPage() {
               {STATUS_LABEL[s]}
             </Chip>
           ))}
+          {/* 정렬 (오른쪽 끝) — 최신이 위로 */}
+          <span className="ml-auto text-xs text-muted-foreground">정렬</span>
+          <Chip active={sort === "updated"} onClick={() => setSort("updated")}>
+            최신 수정순
+          </Chip>
+          <Chip active={sort === "number"} onClick={() => setSort("number")}>
+            번호순
+          </Chip>
         </div>
       </div>
 
