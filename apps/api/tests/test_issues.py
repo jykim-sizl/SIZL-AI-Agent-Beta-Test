@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from src.api.deps import get_issue_service, get_member_service, get_sheet
+from src.api.deps import get_github, get_issue_service, get_member_service, get_sheet
 from src.main import app
 from src.models.issue_draft import IssueDraft
 from src.models.member_verify import MemberVerify
@@ -48,6 +48,9 @@ class FakeGitHub(GitHubPort):
 
     def add_comment(self, issue_number: int, body: str) -> None:
         self.comments.append((issue_number, body))
+
+    def list_issue_titles(self) -> dict[int, str]:
+        return {n: i["title"] for n, i in self.issues.items()}
 
     def create_empty_pr(self, issue_number: int, title: str, body: str) -> int:  # pragma: no cover
         raise NotImplementedError
@@ -103,9 +106,12 @@ def sheet() -> FakeSheet:
 def client(sheet: FakeSheet) -> TestClient:
     member = MemberVerify(email="jy_kim@sizl.co.kr", name="김정연", team="Neo Lab")
     fake = FakeMemberPort({"jy_kim@sizl.co.kr": member})
+    gh = FakeGitHub()
     app.dependency_overrides[get_member_service] = lambda: MemberService(fake)
-    app.dependency_overrides[get_issue_service] = lambda: IssueService(FakeGitHub())
+    app.dependency_overrides[get_issue_service] = lambda: IssueService(gh)
     app.dependency_overrides[get_sheet] = lambda: sheet
+    # GET /issues 가 GitHub 제목 fetch 하므로 override (실 API 호출 방지).
+    app.dependency_overrides[get_github] = lambda: gh
     yield TestClient(app)
     app.dependency_overrides.clear()
 

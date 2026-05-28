@@ -40,6 +40,19 @@ class GitHubAppAdapter(GitHubPort):
         issue = self._repo(self._issue_repo).get_issue(issue_number)
         return {"title": issue.title or "", "body": issue.body or ""}
 
+    def list_issue_titles(self) -> dict[int, str]:
+        # 최근 수정 200개 — beta 규모상 충분. PR 은 issues API 에 섞여 나오므로 제외.
+        repo = self._repo(self._issue_repo)
+        titles: dict[int, str] = {}
+        for i, issue in enumerate(repo.get_issues(state="all", sort="updated", direction="desc")):
+            if i >= 200:
+                break
+            if issue.pull_request is not None:
+                continue
+            titles[issue.number] = issue.title or ""
+        logger.info("github_titles_listed", repo=self._issue_repo, count=len(titles))
+        return titles
+
     def update_issue(self, issue_number: int, title: str, body: str) -> None:
         self._repo(self._issue_repo).get_issue(issue_number).edit(title=title, body=body)
         logger.info("github_issue_updated", number=issue_number, repo=self._issue_repo)

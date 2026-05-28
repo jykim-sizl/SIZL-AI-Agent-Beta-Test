@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body
@@ -13,6 +14,9 @@ from src.models.enhancement_request import EnhancementRequest
 from src.services.sheet.mapping import bug_to_row, enhancement_to_row
 
 router = APIRouter()
+
+# 'bug(영역): 제목' / 'enhance(영역): 제목' → '제목' 만 추출.
+_TITLE_PREFIX = re.compile(r"^(?:bug|enhance)\([^)]+\):\s*")
 
 # bug/enhancement는 필수 필드가 서로 다르고 두 모델 모두 extra=forbid이므로
 # 스마트 유니온이 페이로드를 명확히 구분한다 (별도 판별 필드 불필요).
@@ -29,10 +33,21 @@ class IssueAccepted(BaseModel):
 
 
 @router.get("/issues")
-def list_issues(sheet: SheetDep) -> list[dict[str, Any]]:
+def list_issues(sheet: SheetDep, github: GitHubDep) -> list[dict[str, Any]]:
     # 구글 시트(Raw Bugs/Enhancements) → 목록. 프론트 내 이슈/대시보드가 사용.
+    # 제목은 GitHub 이슈 제목(사용자가 폼에 입력한 'title')으로 덮어씀 — 시트엔
+    # 제목 컬럼이 없으므로(사용자 결정) GitHub 한 번 조회해 prefix 떼고 사용.
     issues = sheet.list_issues()
+    try:
+        gh_titles = github.list_issue_titles()
+    except Exception as exc:  # noqa: BLE001 - GitHub 일시 오류로 목록 빈칸 되지 않게
+        logger.warning("github_titles_fetch_failed", error=str(exc))
+        gh_titles = {}
     for item in issues:
+        if (full := gh_titles.get(item["number"])) is not None:
+            stripped = _TITLE_PREFIX.sub("", full).strip()
+            if stripped:
+                item["title"] = stripped
         item["githubUrl"] = (
             f"https://github.com/{settings.github_issue_repo}/issues/{item['number']}"
         )
