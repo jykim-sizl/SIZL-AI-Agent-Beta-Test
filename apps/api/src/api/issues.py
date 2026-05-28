@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import base64
 import re
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from src.api.deps import GitHubDep, IssueServiceDep, MemberServiceDep, SheetDep
 from src.core.config import settings
 from src.core.logging import logger
+from src.models.attachment import AttachmentInput
 from src.models.bug_report import BugReport
 from src.models.enhancement_request import EnhancementRequest
 from src.services.sheet.mapping import bug_to_row, enhancement_to_row
@@ -65,24 +69,59 @@ def get_issue(number: int, github: GitHubDep) -> dict[str, str]:
 
 
 class IssuePatch(BaseModel):
-    # title/body 수정. comment 가 주어지면 별도 코멘트로 게시.
+    """편집 모달이 보내는 페이로드. 모두 본문(body) 갱신으로 수렴.
+
+    additional_comment 와 attachments 는 GitHub 코멘트가 아니라 **본문에 섹션으로 append**
+    된다 (사용자 결정 2026-05-28: 본 페이지 편집 = 본문 수정, 코멘트 분리 없음).
+    """
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     title: str | None = None
     body: str | None = None
-    comment: str | None = None
+    additional_comment: str | None = None
+    attachments: list[AttachmentInput] = Field(default_factory=list)
 
 
 @router.patch("/issues/{number}")
 def update_issue(number: int, patch: IssuePatch, github: GitHubDep) -> dict[str, str]:
-    if patch.title is not None or patch.body is not None:
-        # title/body 중 하나만 보내도 GitHub 가 부분 업데이트를 지원하지만,
-        # 우리 케이스는 모달이 둘 다 보냄 → 둘 다 안전하게 전달.
-        current = github.get_issue(number)
-        title = patch.title if patch.title is not None else current["title"]
-        body = patch.body if patch.body is not None else current["body"]
-        github.update_issue(number, title=title, body=body)
-    if patch.comment and patch.comment.strip():
-        github.add_comment(number, patch.comment.strip())
-    logger.info("issue_edited", number=number, has_comment=bool(patch.comment))
+    # title/body 둘 다 안전하게 보내도록 현재값과 머지.
+    current = github.get_issue(number)
+    title = patch.title if patch.title is not None else current["title"]
+    body = patch.body if patch.body is not None else current["body"]
+
+    # 추가 의견 → 본문 끝에 섹션으로 append (코멘트로 게시 안 함).
+    extra_comment = (patch.additional_comment or "").strip()
+    if extra_comment:
+        today = date.today().isoformat()
+        body = f"{body.rstrip()}\n\n## 추가 의견 ({today})\n{extra_comment}\n"
+
+    # 첨부 → 이미지면 업로드 후 ![](url), 그 외는 파일명만. 본문 끝 섹션.
+    if patch.attachments:
+        today = date.today().isoformat()
+        lines: list[str] = []
+        for att in patch.attachments:
+            data_url = att.data_url or ""
+            if data_url.startswith("data:image") and "," in data_url:
+                try:
+                    content = base64.b64decode(data_url.split(",", 1)[1])
+                    url = github.upload_image(att.name, content)
+                    lines.append(f"![{att.name}]({url})")
+                except Exception as exc:  # noqa: BLE001 - 업로드 실패해도 저장은 진행
+                    logger.warning("attachment_upload_failed", name=att.name, error=str(exc))
+                    lines.append(f"- {att.name} _(업로드 실패)_")
+            else:
+                lines.append(f"- {att.name}")
+        if lines:
+            body = f"{body.rstrip()}\n\n## 첨부 추가 ({today})\n" + "\n".join(lines) + "\n"
+
+    github.update_issue(number, title=title, body=body)
+    logger.info(
+        "issue_edited",
+        number=number,
+        has_extra_comment=bool(extra_comment),
+        attachments=len(patch.attachments),
+    )
     return {"status": "updated"}
 
 

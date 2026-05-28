@@ -27,10 +27,16 @@ export async function fetchIssueDetail(
   }
 }
 
-// PATCH /issues/{n} → title/body 수정 + 선택적으로 코멘트 게시. GitHub 이슈에 반영.
+// PATCH /issues/{n} — title/body 갱신 + 추가 의견·첨부를 본문 끝 섹션으로 append.
+// (추가 의견은 GitHub 코멘트가 아니라 본문 섹션으로 들어감 — 사용자 결정.)
 export async function updateIssue(
   number: number,
-  patch: { title?: string; body?: string; comment?: string },
+  patch: {
+    title?: string;
+    body?: string;
+    additionalComment?: string;
+    attachments?: { name: string; dataUrl: string }[];
+  },
 ): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/issues/${number}`, {
