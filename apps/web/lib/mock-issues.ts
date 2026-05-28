@@ -44,7 +44,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     createdAt: "2026-05-26",
     updatedAt: "2026-05-27",
     prNumber: 45,
-    githubUrl: "https://github.com/Neolab-test/test/issues/142",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/142",
   },
   {
     number: 138,
@@ -56,7 +56,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     body: "## 요약\n- 발생 화면: https://app.example.com/agents/document\n\n## 재현 방법\n1. 한글 파일명 PDF 업로드\n2. 목록에 파일명이 `??????`로 표시됨",
     createdAt: "2026-05-25",
     updatedAt: "2026-05-25",
-    githubUrl: "https://github.com/Neolab-test/test/issues/138",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/138",
   },
   {
     number: 124,
@@ -68,7 +68,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     body: "## 요약\n- 특정 PDF에서만 멈춘다고 제보되었으나, Playwright 자동 재현에서 동일 증상 확인 불가.\n- 제보자 환경/파일 추가 정보 필요.",
     createdAt: "2026-05-23",
     updatedAt: "2026-05-24",
-    githubUrl: "https://github.com/Neolab-test/test/issues/124",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/124",
   },
   {
     number: 131,
@@ -80,7 +80,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     body: "## 개선 요청\n- 현재: 전송하려면 마우스로 버튼 클릭해야 함\n- 기대: Cmd+Enter(또는 Ctrl+Enter)로 전송\n\n## 기대 효과\n반복 입력이 많은 사용자의 작업 속도 향상",
     createdAt: "2026-05-24",
     updatedAt: "2026-05-24",
-    githubUrl: "https://github.com/Neolab-test/test/issues/131",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/131",
   },
   {
     number: 119,
@@ -92,7 +92,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     body: "## 개선 요청\n- 현재: 처리 중 스피너만 표시\n- 기대: 0~100% 진행률 표시\n\n## 검토 결과\n반영 예정 (다음 스프린트)",
     createdAt: "2026-05-20",
     updatedAt: "2026-05-23",
-    githubUrl: "https://github.com/Neolab-test/test/issues/119",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/119",
   },
   {
     number: 115,
@@ -104,7 +104,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     body: "## 개선 요청\n- 다크 모드 테마 지원\n\n## 검토 결과\n베타 기간 중에는 미반영 (정식 출시 후 재검토)",
     createdAt: "2026-05-19",
     updatedAt: "2026-05-22",
-    githubUrl: "https://github.com/Neolab-test/test/issues/115",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/115",
   },
   {
     number: 112,
@@ -117,7 +117,7 @@ export const MOCK_MY_ISSUES: Issue[] = [
     createdAt: "2026-05-18",
     updatedAt: "2026-05-21",
     prNumber: 30,
-    githubUrl: "https://github.com/Neolab-test/test/issues/112",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/112",
   },
 ];
 
@@ -135,7 +135,7 @@ const OTHER_ISSUES: Issue[] = [
     createdAt: "2026-05-26",
     updatedAt: "2026-05-27",
     prNumber: 44,
-    githubUrl: "https://github.com/Neolab-test/test/issues/141",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/141",
   },
   {
     number: 140,
@@ -148,7 +148,7 @@ const OTHER_ISSUES: Issue[] = [
     reporter: "이서연 · 플랫폼팀",
     createdAt: "2026-05-26",
     updatedAt: "2026-05-26",
-    githubUrl: "https://github.com/Neolab-test/test/issues/140",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/140",
   },
   {
     number: 135,
@@ -161,7 +161,7 @@ const OTHER_ISSUES: Issue[] = [
     reporter: "박지훈 · AI팀",
     createdAt: "2026-05-25",
     updatedAt: "2026-05-25",
-    githubUrl: "https://github.com/Neolab-test/test/issues/135",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/135",
   },
   {
     number: 133,
@@ -175,7 +175,7 @@ const OTHER_ISSUES: Issue[] = [
     createdAt: "2026-05-24",
     updatedAt: "2026-05-26",
     prNumber: 41,
-    githubUrl: "https://github.com/Neolab-test/test/issues/133",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/133",
   },
   {
     number: 129,
@@ -188,7 +188,7 @@ const OTHER_ISSUES: Issue[] = [
     reporter: "김민수 · 데이터팀",
     createdAt: "2026-05-22",
     updatedAt: "2026-05-24",
-    githubUrl: "https://github.com/Neolab-test/test/issues/129",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/129",
   },
   {
     number: 121,
@@ -201,7 +201,7 @@ const OTHER_ISSUES: Issue[] = [
     reporter: "이서연 · 플랫폼팀",
     createdAt: "2026-05-21",
     updatedAt: "2026-05-21",
-    githubUrl: "https://github.com/Neolab-test/test/issues/121",
+    githubUrl: "https://github.com/kimjy-st/QA_test/issues/121",
   },
 ];
 
