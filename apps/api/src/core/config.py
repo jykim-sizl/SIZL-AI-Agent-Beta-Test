@@ -12,8 +12,11 @@ class Settings(BaseSettings):
     github_issue_repo: str = "jykim-sizl/SIZL-AI-Agent-Beta-Test"
     github_target_repo: str = "kimjy-st/QA_test"
 
-    # Anthropic
+    # Anthropic (현재 미사용, 키 발급 대기 — Gemini 로 우선 운영)
     anthropic_api_key: str
+    # Gemini (Google AI Studio 무료 tier). 없으면 LLM 호출 없이 템플릿 fallback.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
 
     # Google Sheets
     google_service_account_json_path: str
