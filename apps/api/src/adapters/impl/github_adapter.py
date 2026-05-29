@@ -11,6 +11,20 @@ from src.core.logging import logger
 from src.models.issue_draft import IssueDraft
 from src.services.github.port import GitHubPort
 
+# 자동 생성될 라벨의 색상 (없으면 GitHub default).
+_LABEL_COLORS = {
+    "bug": "d73a4a",
+    "enhancement": "a2eeef",
+    "priority:P1": "b60205",
+    "priority:P2": "d93f0b",
+    "priority:P3": "fbca04",
+    "priority:P4": "c5def5",
+}
+
+
+def _label_color(name: str) -> str:
+    return _LABEL_COLORS.get(name, "ededed")
+
 
 class GitHubAppAdapter(GitHubPort):
     """GitHubPort 실구현. GitHub App(설치 토큰)으로 이슈/ PR을 처리한다.
@@ -36,6 +50,14 @@ class GitHubAppAdapter(GitHubPort):
 
     def create_issue(self, draft: IssueDraft) -> int:
         repo = self._repo(self._issue_repo)
+        # 라벨이 repo 에 없으면 GitHub API 가 422 로 거절 → 자동 생성으로 안전망.
+        # 기존 라벨 있으면 422 (already exists) — 무시.
+        for name in draft.labels:
+            try:
+                repo.create_label(name=name, color=_label_color(name))
+            except GithubException as exc:
+                if exc.status not in (422,):  # 422 = already exists
+                    logger.warning("github_label_create_failed", label=name, status=exc.status)
         issue = repo.create_issue(title=draft.title, body=draft.body, labels=draft.labels)
         logger.info("github_issue_created", number=issue.number, repo=self._issue_repo)
         self._invalidate_titles_cache()
