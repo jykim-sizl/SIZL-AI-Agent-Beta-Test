@@ -8,8 +8,9 @@ class Settings(BaseSettings):
     github_app_id: str
     github_app_private_key_path: str
     github_webhook_secret: str
-    # 이슈는 이 repo에, PR은 App이 설치된 타깃 repo(QA_test)에 생성. (둘 다 App 설치됨)
-    github_issue_repo: str = "jykim-sizl/SIZL-AI-Agent-Beta-Test"
+    # ADR(2026-05-29 옵션 B): 이슈 + PR 모두 target repo 한 곳에 집중.
+    # 두 필드 default 값 동일 — 향후 multi-project Phase 에서 단일 필드로 통합 예정.
+    github_issue_repo: str = "kimjy-st/QA_test"
     github_target_repo: str = "kimjy-st/QA_test"
 
     # Anthropic (현재 미사용, 키 발급 대기 — Gemini 로 우선 운영)
