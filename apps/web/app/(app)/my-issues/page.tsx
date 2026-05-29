@@ -60,17 +60,17 @@ export default function MyIssuesPage() {
   const [editError, setEditError] = useState("");
 
   // 실데이터: 백엔드 GET /issues → 내가 제출한 것(등록자=로그인 이름)만.
-  // reloadKey 가 바뀌면 재시도. fetch 실패는 loadError 로 표시.
+  // reloadKey ↑ 시 재시도. polling 도 reloadKey ↑ 로 트리거 — 깜빡임 없이 silent 갱신.
   useEffect(() => {
     let cancelled = false;
-    setIssues(null);
     setLoadError(false);
     const user = getUser();
     fetchIssues().then((all) => {
       if (cancelled) return;
       if (all === null) {
         setLoadError(true);
-        setIssues([]);
+        // 초기 로드 실패면 빈배열, polling 실패면 기존 데이터 유지
+        setIssues((prev) => (prev === null ? [] : prev));
         return;
       }
       setIssues(user ? all.filter((i) => i.reporter === user.name) : all);
@@ -79,6 +79,12 @@ export default function MyIssuesPage() {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  // 30초마다 자동 갱신 (GitHub close 등 외부 변경 반영). 페이지 unmount 시 정리.
+  useEffect(() => {
+    const t = setInterval(() => setReloadKey((k) => k + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const issuesList = useMemo(() => issues ?? [], [issues]);
   const loading = issues === null;

@@ -33,16 +33,15 @@ export default function StatusPage() {
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
   const [sort, setSort] = useState<"updated" | "number">("updated");
 
-  // 실데이터: 백엔드 GET /issues → 전체 이슈. null = 로딩, [] = 에러/0건.
+  // 실데이터: 백엔드 GET /issues → 전체 이슈. polling 도 reloadKey 로 silent 갱신.
   useEffect(() => {
     let cancelled = false;
-    setIssues(null);
     setLoadError(false);
     fetchIssues().then((all) => {
       if (cancelled) return;
       if (all === null) {
         setLoadError(true);
-        setIssues([]);
+        setIssues((prev) => (prev === null ? [] : prev));
         return;
       }
       setIssues(all);
@@ -51,6 +50,12 @@ export default function StatusPage() {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  // 30초마다 자동 갱신.
+  useEffect(() => {
+    const t = setInterval(() => setReloadKey((k) => k + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const issuesList = useMemo(() => issues ?? [], [issues]);
   const loading = issues === null;
