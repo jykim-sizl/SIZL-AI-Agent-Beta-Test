@@ -6,8 +6,10 @@ from typing import Annotated
 from fastapi import Depends
 
 from src.adapters.impl import (
+    AnthropicAdapter,
     DummyLLMAdapter,
     ExcelMemberAdapter,
+    FallbackLLMAdapter,
     GeminiAdapter,
     GitHubAppAdapter,
     GoogleSheetAdapter,
@@ -66,13 +68,35 @@ GitHubDep = Annotated[GitHubPort, Depends(get_github)]
 
 @lru_cache
 def _llm() -> LLMPort:
-    # GEMINI_API_KEY 가 있으면 Gemini, 없으면 Dummy (코멘트 풍부화 없이 템플릿 fallback).
-    key = (settings.gemini_api_key or "").strip()
-    if key:
-        logger.info("llm_adapter_selected", impl="gemini", model=settings.gemini_model)
-        return GeminiAdapter(key, settings.gemini_model)
-    logger.info("llm_adapter_selected", impl="dummy", reason="GEMINI_API_KEY missing")
-    return DummyLLMAdapter()
+    # 우선순위 체인 (ADR 2026-05-29):
+    #   ANTHROPIC_API_KEY 가 유효하면 Claude → primary
+    #   GEMINI_API_KEY 가 유효하면 Gemini → secondary (Claude rate limit/실패 시 fallback)
+    #   둘 다 없으면 Dummy (템플릿 fallback)
+    # _DUMMY 같은 placeholder 키도 정상 호출 시도 → 실패하면 자동 fallback 흘러감.
+    anthropic_key = settings.anthropic_api_key.strip()
+    gemini_key = (settings.gemini_api_key or "").strip()
+
+    primary: LLMPort | None = None
+    secondary: LLMPort | None = None
+
+    if anthropic_key:
+        primary = AnthropicAdapter(anthropic_key, settings.anthropic_model)
+        logger.info("llm_primary_selected", impl="anthropic", model=settings.anthropic_model)
+    if gemini_key:
+        gemini = GeminiAdapter(gemini_key, settings.gemini_model)
+        if primary is None:
+            primary = gemini
+            logger.info("llm_primary_selected", impl="gemini", model=settings.gemini_model)
+        else:
+            secondary = gemini
+            logger.info("llm_secondary_selected", impl="gemini", model=settings.gemini_model)
+
+    if primary is None:
+        logger.info("llm_adapter_selected", impl="dummy", reason="no LLM keys")
+        return DummyLLMAdapter()
+    if secondary is None:
+        return primary
+    return FallbackLLMAdapter(primary, secondary)
 
 
 def get_llm() -> LLMPort:

@@ -1,0 +1,138 @@
+from __future__ import annotations
+
+from anthropic import Anthropic
+
+from src.core.logging import logger
+from src.models.analysis_result import AnalysisResult
+from src.models.bug_report import BugReport
+from src.services.llm.port import IssueOpenContext, LLMPort, PRCloseContext
+
+# Gemini 와 동일한 system prompt — LLM-agnostic 컨트랙트 유지 (port 시그니처 같음).
+_SYSTEM_PROMPT_CLOSE = """\
+당신은 베타테스트 자동화 도구의 마무리 봇입니다.
+이슈와 그 분석 PR이 닫힌 상황을 보고, 제보자에게 이슈 페이지에 남길 \
+'마무리 코멘트'를 한국어 마크다운으로 작성하세요.
+
+형식 가이드:
+- 첫 줄: ✅ (머지=완료) 또는 ⚠️ (언머지=철회) 한 줄 요약 + PR 번호
+- 'Root cause' 또는 '추정 원인': 이슈 본문에서 합리적으로 추정 (확신 없으면 가설로 표시)
+- 'Fix' 또는 '대응': PR 본문/타이틀에서 유추 (코드 변경 정보가 부족하면 그렇게 명시)
+- 'Retest': 제보자가 다시 확인해야 할 1~2가지 안내
+- 마지막: 'Closed without merge' 라면 새 이슈 재제출 부탁 한 줄
+
+5~10 줄로 간결하게. 추측은 명시적으로 (가설/추정). 절대 거짓 fact 만들지 말 것.
+GitHub Markdown 이라 ``` 코드 블록 사용 가능.
+"""
+
+_SYSTEM_PROMPT_PR_OPEN = """\
+당신은 베타테스트 자동화 도구의 분석 봇입니다.
+사용자가 올린 이슈를 보고, 개발자가 작업을 시작할 수 있도록 \
+**분석 PR(빈 PR, 코드 변경 없음)의 본문**을 한국어 마크다운으로 작성하세요.
+
+코드 자체를 보지 못하므로 **추측은 반드시 '추정/가설'로 명시**합니다.
+거짓 fact 절대 생성 금지. 정보가 부족하면 '정보 부족' 이라고 적으세요.
+
+출력은 **딱 아래 4개 섹션만**. 추가 섹션·머리말·꼬리말·인용·서론·결론 모두 금지.
+
+### 📌 이슈 요약
+> 3~5 줄. 사용자가 무엇을 했고/기대했고/일어났는지.
+
+### 🔍 추정 원인
+- 가설 1: ...
+- 가설 2: ...
+
+### 🛠 점검 포인트
+- 의심 영역/모듈
+
+### ✅ 재현 시나리오
+1. ...
+2. ...
+"""
+
+
+class AnthropicAdapter(LLMPort):
+    """Anthropic Claude LLM 어댑터. 기본 model = claude-sonnet-4-6.
+
+    Gemini 와 LLMPort 시그니처가 같으므로 deps 에서 어댑터만 교체 가능.
+    bug analyze() 는 W3 작업 전까지 미구현.
+    """
+
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-6") -> None:
+        self._client = Anthropic(api_key=api_key)
+        self._model = model
+
+    def _generate(self, system: str, user: str, *, max_tokens: int) -> str | None:
+        try:
+            resp = self._client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                temperature=0.3,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+            # 단일 텍스트 블록 가정 (system + 단일 user → 단일 response).
+            # Anthropic SDK union 타입 — text 블록만 골라서 안전하게 추출.
+            parts: list[str] = []
+            for b in resp.content:
+                if getattr(b, "type", "") == "text" and hasattr(b, "text"):
+                    parts.append(str(b.text))
+            text = "".join(parts).strip()
+            return text or None
+        except Exception as exc:  # noqa: BLE001 - 호출자가 fallback 으로 우회
+            logger.warning("anthropic_call_failed", error=str(exc))
+            return None
+
+    def analyze(self, bug_report: BugReport) -> AnalysisResult:
+        raise NotImplementedError("Bug 분석은 W3 작업 (현재는 PR 본문/코멘트만)")
+
+    def is_healthy(self) -> bool:
+        try:
+            self._client.messages.create(
+                model=self._model,
+                max_tokens=8,
+                messages=[{"role": "user", "content": "ping"}],
+            )
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("anthropic_unhealthy", error=str(exc))
+            return False
+
+    def summarize_pr_close(self, ctx: PRCloseContext) -> str | None:
+        text = self._generate(
+            _SYSTEM_PROMPT_CLOSE, self._build_close_prompt(ctx), max_tokens=600
+        )
+        if text:
+            logger.info("anthropic_close_generated", issue=ctx.issue_number, chars=len(text))
+        return text
+
+    def draft_pr_body(self, ctx: IssueOpenContext) -> str | None:
+        text = self._generate(
+            _SYSTEM_PROMPT_PR_OPEN, self._build_open_prompt(ctx), max_tokens=1200
+        )
+        if text:
+            logger.info("anthropic_pr_body_generated", issue=ctx.issue_number, chars=len(text))
+        return text
+
+    @staticmethod
+    def _build_close_prompt(ctx: PRCloseContext) -> str:
+        state = "merged" if ctx.merged else "closed without merge"
+        sha = f" (commit {ctx.merge_commit_sha})" if ctx.merge_commit_sha else ""
+        pr_ref = f"PR #{ctx.pr_number}" if ctx.pr_number else "분석 PR"
+        issue_body = (ctx.issue_body or "")[:4000]
+        pr_body = (ctx.pr_body or "")[:2000]
+        return (
+            f"[이슈 #{ctx.issue_number}] {ctx.issue_title}\n"
+            f"{issue_body}\n\n"
+            f"[{pr_ref}] {ctx.pr_title} ({state}{sha})\n"
+            f"URL: {ctx.pr_url}\n"
+            f"{pr_body}"
+        )
+
+    @staticmethod
+    def _build_open_prompt(ctx: IssueOpenContext) -> str:
+        issue_body = (ctx.issue_body or "")[:6000]
+        return (
+            f"[이슈 #{ctx.issue_number}] {ctx.issue_title}\n"
+            f"이슈 URL: {ctx.issue_url}\n\n"
+            f"{issue_body}"
+        )
