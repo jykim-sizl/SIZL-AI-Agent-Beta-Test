@@ -13,9 +13,10 @@ class Settings(BaseSettings):
     github_issue_repo: str = "kimjy-st/QA_test"
     github_target_repo: str = "kimjy-st/QA_test"
 
-    # Anthropic (현재 미사용, 키 발급 대기 — Gemini 로 우선 운영)
+    # Anthropic (Claude). 2026-05-29 키 발급 — primary LLM 으로 사용.
     anthropic_api_key: str
-    # Gemini (Google AI Studio 무료 tier). 없으면 LLM 호출 없이 템플릿 fallback.
+    anthropic_model: str = "claude-sonnet-4-6"
+    # Gemini (Google AI Studio 무료 tier). Claude 실패 시 fallback.
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
 
