@@ -165,13 +165,17 @@ def submit_issue(
     member = members.verify(str(report.reporter_email))
     # 2) GitHub 이슈 생성 → 번호 확보
     number = issues.submit(report, member)
-    # 3) 시트 기입 (운영자 컬럼은 빈칸 유지). 버그/개선 탭 분리.
+    # 3) Issue ID 발급 (BUG-NNN / REQ-NNN) + 시트 기입. 운영자 컬럼은 빈칸 유지.
     if isinstance(report, BugReport):
         kind: Literal["bug", "enhancement"] = "bug"
-        sheet.append_bug(bug_to_row(report, member, number))
+        issue_id = sheet.next_issue_id("bug")
+        sheet.append_bug(bug_to_row(report, member, number, issue_id=issue_id))
     else:
         kind = "enhancement"
-        sheet.append_enhancement(enhancement_to_row(report, member, number))
+        issue_id = sheet.next_issue_id("enhancement")
+        sheet.append_enhancement(
+            enhancement_to_row(report, member, number, issue_id=issue_id)
+        )
 
     logger.info("issue_submitted", kind=kind, number=number, email=member.email, area=report.area)
     return IssueAccepted(

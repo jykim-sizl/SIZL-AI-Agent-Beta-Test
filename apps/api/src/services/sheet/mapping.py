@@ -21,8 +21,9 @@ def bug_to_row(
     member: MemberVerify,
     issue_number: int | None = None,
     today: str | None = None,
+    issue_id: str | None = None,
 ) -> dict[str, str]:
-    return {
+    row: dict[str, str] = {
         "등록일": today or _now_iso(),
         "등록자": member.name,
         "팀": member.team,
@@ -36,6 +37,9 @@ def bug_to_row(
         "# github issue": f"#{issue_number}" if issue_number is not None else "",
         "비고": report.additional_comments or "",
     }
+    if issue_id:
+        row["Issue ID"] = issue_id
+    return row
 
 
 def enhancement_to_row(
@@ -43,8 +47,9 @@ def enhancement_to_row(
     member: MemberVerify,
     issue_number: int | None = None,
     today: str | None = None,
+    issue_id: str | None = None,
 ) -> dict[str, str]:
-    return {
+    row: dict[str, str] = {
         "등록일": today or _now_iso(),
         "등록자": member.name,
         "팀": member.team,
@@ -56,3 +61,6 @@ def enhancement_to_row(
         "비고": report.additional_comments or "",
         "# github issue": f"#{issue_number}" if issue_number is not None else "",
     }
+    if issue_id:
+        row["Issue ID"] = issue_id
+    return row

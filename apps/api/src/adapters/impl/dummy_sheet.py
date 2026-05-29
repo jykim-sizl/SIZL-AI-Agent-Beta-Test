@@ -32,3 +32,6 @@ class DummySheetAdapter(SheetPort):
         action_text: str | None = None,
     ) -> None:
         raise NotImplementedError("W2에서 구현")
+
+    def next_issue_id(self, kind: str) -> str:
+        raise NotImplementedError("W2에서 구현")

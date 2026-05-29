@@ -90,6 +90,11 @@ class FakeSheet(SheetPort):
     ) -> None:
         raise NotImplementedError
 
+    def next_issue_id(self, kind: str) -> str:
+        # 테스트: 단순 카운터 (실제 시트 호출 안 함)
+        prefix = "BUG" if kind == "bug" else "REQ"
+        return f"{prefix}-001"
+
     def update_pr_status(  # pragma: no cover
         self,
         issue_number: int,

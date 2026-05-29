@@ -279,6 +279,24 @@ class GoogleSheetAdapter(SheetPort):
                 return
         logger.warning("sheet_status_row_not_found", issue=issue_number)
 
+    def next_issue_id(self, kind: str) -> str:
+        # bug→BUG-NNN / enhancement→REQ-NNN. 해당 탭 A 컬럼 max +1.
+        if kind == "bug":
+            sheet, prefix = BUG_SHEET, "BUG"
+        else:
+            sheet, prefix = ENH_SHEET, "REQ"
+        resp = self._values.get(spreadsheetId=self._sid, range=f"'{sheet}'!A2:A").execute()
+        max_n = 0
+        for row in resp.get("values", []):
+            v = (row[0] if row else "").strip()
+            if v.startswith(f"{prefix}-"):
+                tail = v[len(prefix) + 1 :]
+                if tail.isdigit():
+                    n = int(tail)
+                    if n > max_n:
+                        max_n = n
+        return f"{prefix}-{max_n + 1:03d}"
+
     def update_enhancement_status(
         self,
         issue_number: int,
