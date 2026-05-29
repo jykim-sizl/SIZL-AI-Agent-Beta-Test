@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Literal
 
 
 class SheetPort(ABC):
@@ -51,5 +51,14 @@ class SheetPort(ABC):
 
         GitHub 이슈가 closed 되면 webhook 이 호출 — state_reason 으로
         '검토완료 · 반영' / '검토완료 · 미반영' 매핑.
+        """
+        ...
+
+    @abstractmethod
+    def next_issue_id(self, kind: Literal["bug", "enhancement"]) -> str:
+        """다음 Issue ID 생성. bug→BUG-NNN / enhancement→REQ-NNN.
+
+        해당 탭의 'Issue ID' 컬럼 마지막 값 보고 +1. 비어있으면 001.
+        race condition 가능하지만 베타 규모에서 무시 (ADR 2026-05-29).
         """
         ...
