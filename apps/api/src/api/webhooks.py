@@ -56,7 +56,7 @@ async def receive_webhook(
         if x_github_event == "issues" and action == "opened":
             _handle_issue_opened(payload, pr)
         elif x_github_event == "issues" and action == "closed":
-            _handle_issue_closed(payload, sheet)
+            _handle_issue_closed(payload, sheet, github)
         elif x_github_event == "pull_request" and action == "closed":
             _handle_pr_closed(payload, sheet, github, llm)
     except Exception as exc:  # noqa: BLE001 - 핸들러 실패가 웹훅 ACK(200)을 막지 않게
@@ -70,31 +70,51 @@ async def receive_webhook(
     return {"status": "received"}
 
 
-def _handle_issue_closed(payload: dict[str, Any], sheet: SheetPort) -> None:
-    # enhancement 이슈가 GitHub 에서 close 되면 시트 상태/조치 내용 동기화.
-    # state_reason: 'completed'=반영, 'not_planned'=미반영, 그 외=반영(기본).
-    # bug 는 PR-close 핸들러가 처리하므로 여기서는 무시.
+def _handle_issue_closed(payload: dict[str, Any], sheet: SheetPort, github: GitHubPort) -> None:
+    # issues.closed: enhancement 와 bug 둘 다 처리 (ADR 2026-05-29).
     issue = payload.get("issue") or {}
     labels = {lbl.get("name") for lbl in issue.get("labels", []) if isinstance(lbl, dict)}
-    if "enhancement" not in labels:
-        return
     number = issue.get("number")
     if not isinstance(number, int):
         return
     reason = issue.get("state_reason") or ""
-    if reason == "not_planned":
-        status = "검토완료 · 미반영"
-        action = (
-            f"⚠️ #{number} 미반영 처리 — GitHub 이슈 closed "
-            f"(reason: not_planned). 사유는 시트 '조치 내용'에 정리해주세요."
-        )
-    else:
-        status = "검토완료 · 반영"
-        action = (
-            f"✅ #{number} 반영 처리 — GitHub 이슈 closed "
-            f"(reason: {reason or 'completed'}). 반영 결과는 시트 '조치 내용'에 정리해주세요."
-        )
-    sheet.update_enhancement_status(number, status, action_text=action)
+
+    if "enhancement" in labels:
+        # state_reason: 'completed'=반영 / 'not_planned'=미반영 / 그 외=반영(기본)
+        if reason == "not_planned":
+            status = "검토완료 · 미반영"
+            action = (
+                f"⚠️ #{number} 미반영 처리 — GitHub 이슈 closed "
+                f"(reason: not_planned). 사유는 시트 '조치 내용'에 정리해주세요."
+            )
+        else:
+            status = "검토완료 · 반영"
+            action = (
+                f"✅ #{number} 반영 처리 — GitHub 이슈 closed "
+                f"(reason: {reason or 'completed'}). 반영 결과는 시트 '조치 내용'에 정리해주세요."
+            )
+        sheet.update_enhancement_status(number, status, action_text=action)
+        return
+
+    if "bug" in labels:
+        # state_reason 으로 매핑: completed→완료 / not_planned→재현 불가 / 없음→철회
+        if reason == "completed":
+            status = "완료"
+            action = f"✅ #{number} 처리 완료 — GitHub 이슈 closed (수동, reason: completed)."
+        elif reason == "not_planned":
+            status = "재현 불가"
+            action = f"⚠️ #{number} 재현 불가 — GitHub 이슈 closed (reason: not_planned)."
+        else:
+            status = "철회"
+            action = f"⚠️ #{number} 철회 — GitHub 이슈 closed (수동, 사유 미지정)."
+        sheet.update_pr_status(number, status, action_text=action)
+        # 열린 분석 PR 이 있으면 자동 close (이슈 닫혔는데 PR 살아있는 거 정리).
+        try:
+            closed_pr = github.close_pr_for_issue(number)
+            if closed_pr:
+                logger.info("auto_closed_pr_with_issue", issue=number, pr=closed_pr)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("pr_auto_close_failed", issue=number, error=str(exc))
 
 
 def _handle_issue_opened(payload: dict[str, Any], pr: PRService) -> None:

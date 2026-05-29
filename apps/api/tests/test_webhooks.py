@@ -58,12 +58,22 @@ class FakeGitHub:
     def __init__(self) -> None:
         self.comments: list[tuple[int, str]] = []
         self.closed: list[int] = []
+        self.closed_prs: list[int] = []  # close_pr_for_issue 호출된 이슈 번호
+        # 시뮬레이션: 어떤 이슈에 열린 PR 이 있는지 매핑. 테스트에서 set.
+        self.open_pr_for_issue: dict[int, int] = {}
 
     def add_comment(self, issue_number: int, body: str) -> None:
         self.comments.append((issue_number, body))
 
     def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         self.closed.append(issue_number)
+
+    def close_pr_for_issue(self, issue_number: int) -> int | None:
+        self.closed_prs.append(issue_number)
+        return self.open_pr_for_issue.get(issue_number)
+
+    def get_issue(self, issue_number: int) -> dict[str, str]:  # PR-close 시 LLM 컨텍스트용
+        return {"title": "", "body": ""}
 
 
 @pytest.fixture
@@ -268,17 +278,48 @@ def test_enhancement_closed_not_planned_marks_rejected(
     assert sheet.status[0][:2] == (51, "검토완료 · 미반영")
 
 
-def test_bug_closed_directly_ignored(
+def test_bug_closed_completed_marks_done(
     client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
 ) -> None:
-    # bug 이슈가 (PR 경유 없이) close 되면 이 핸들러는 무시 (PR-close 가 따로 처리).
-    _, sheet, _ = fakes
+    # bug 이슈가 'completed' 로 close → 시트 '완료' + 열린 분석 PR 자동 close (ADR 2026-05-29).
+    _, sheet, gh = fakes
+    gh.open_pr_for_issue[52] = 99  # 이 이슈의 분석 PR 이 열려있다고 시뮬레이션
     payload = {
         "action": "closed",
         "issue": {"number": 52, "labels": [{"name": "bug"}], "state_reason": "completed"},
     }
     assert _post(client, payload, "issues").status_code == 200
-    assert sheet.status == []
+    assert sheet.status[0][:2] == (52, "완료")
+    assert sheet.status[0][2] is not None and "완료" in sheet.status[0][2]
+    assert gh.closed_prs == [52]  # 분석 PR auto-close 시도
+
+
+def test_bug_closed_not_planned_marks_cannot_reproduce(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # bug 이슈가 'not_planned' 로 close → 시트 '재현 불가'.
+    _, sheet, gh = fakes
+    payload = {
+        "action": "closed",
+        "issue": {"number": 53, "labels": [{"name": "bug"}], "state_reason": "not_planned"},
+    }
+    assert _post(client, payload, "issues").status_code == 200
+    assert sheet.status[0][:2] == (53, "재현 불가")
+    assert gh.closed_prs == [53]
+
+
+def test_bug_closed_no_reason_marks_withdrawn(
+    client: TestClient, fakes: tuple[FakePR, FakeSheet, FakeGitHub]
+) -> None:
+    # bug 이슈를 reason 없이 그냥 close → 시트 '철회'.
+    _, sheet, gh = fakes
+    payload = {
+        "action": "closed",
+        "issue": {"number": 54, "labels": [{"name": "bug"}]},  # state_reason 없음
+    }
+    assert _post(client, payload, "issues").status_code == 200
+    assert sheet.status[0][:2] == (54, "철회")
+    assert gh.closed_prs == [54]
 
 
 def test_pr_closed_unrelated_branch_ignored(

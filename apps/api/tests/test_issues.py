@@ -59,7 +59,11 @@ class FakeGitHub(GitHubPort):
     def close_issue(
         self, issue_number: int, state_reason: str | None = None
     ) -> None:  # pragma: no cover
-        raise NotImplementedError
+        # /issues/{n}/close 핸들러 테스트 시 호출됨
+        pass
+
+    def close_pr_for_issue(self, issue_number: int) -> int | None:  # pragma: no cover
+        return None
 
 
 class FakeSheet(SheetPort):

@@ -84,10 +84,30 @@ class IssuePatch(BaseModel):
 
 
 @router.post("/issues/{number}/close")
-def close_issue_route(number: int, github: GitHubDep) -> dict[str, str]:
-    # 사용자가 '닫기' 버튼 누름 → 'not_planned' 로 close (= 미반영/철회).
-    # webhook(issues.closed) 가 시트 동기화·코멘트는 자동 처리.
+def close_issue_route(number: int, github: GitHubDep, sheet: SheetDep) -> dict[str, str]:
+    # 사용자 '닫기' 버튼 — webhook 의존 제거하고 직접 모든 동기화 수행
+    # (이미 닫힌 이슈 재-close 도 시트 동기화 보장. ADR 2026-05-29).
+    # 1) GitHub 이슈 close (이미 closed 면 no-op)
     github.close_issue(number, state_reason="not_planned")
+    # 2) 시트 처리상태 + 조치 내용 (bug 가정 — 'not_planned' = '재현 불가')
+    # 사용자가 명시적으로 '닫기' 한 의도는 unmerged-PR 시나리오와 유사하므로 '철회'/'재현 불가'
+    # 사이 모호. 사용자 결정: 'not_planned' → 시트 '재현 불가' 로 매핑 (state_reason 매핑과 일관).
+    action = (
+        f"⚠️ #{number} 재현 불가 — 사용자가 웹폼 '닫기' 로 처리 (reason: not_planned)."
+    )
+    sheet.update_pr_status(number, "재현 불가", action_text=action)
+    # 3) 열린 분석 PR 자동 close
+    try:
+        closed_pr = github.close_pr_for_issue(number)
+        if closed_pr:
+            logger.info("auto_closed_pr_with_user_close", issue=number, pr=closed_pr)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("pr_auto_close_failed_user_close", issue=number, error=str(exc))
+    # 4) 이슈에 코멘트 (중복 게시 가능 — 받아들임)
+    try:
+        github.add_comment(number, action)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("issue_comment_failed_user_close", issue=number, error=str(exc))
     logger.info("issue_closed_by_user", number=number)
     return {"status": "closed"}
 

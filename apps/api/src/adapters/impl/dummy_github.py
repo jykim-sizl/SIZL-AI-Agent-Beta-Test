@@ -28,3 +28,6 @@ class DummyGitHubAdapter(GitHubPort):
 
     def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         raise NotImplementedError("W2에서 구현")
+
+    def close_pr_for_issue(self, issue_number: int) -> int | None:
+        raise NotImplementedError("W2에서 구현")
