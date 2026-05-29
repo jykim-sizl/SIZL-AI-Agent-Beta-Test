@@ -49,3 +49,8 @@ class GitHubPort(ABC):
     def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         """이슈를 close. state_reason='not_planned' 이면 GitHub UI에 '미반영' 표시."""
         ...
+
+    @abstractmethod
+    def close_pr_for_issue(self, issue_number: int) -> int | None:
+        """auto/issue-{N} 브랜치의 열린 PR 을 close. 반환: 닫은 PR 번호 or None(없음)."""
+        ...

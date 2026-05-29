@@ -140,6 +140,21 @@ class GitHubAppAdapter(GitHubPort):
         logger.info("github_image_uploaded", path=path, repo=self._issue_repo)
         return url
 
+    def close_pr_for_issue(self, issue_number: int) -> int | None:
+        # auto/issue-{N} 브랜치의 열린 PR 찾아 close. 없으면 None.
+        repo = self._repo(self._pr_repo)
+        owner = self._pr_repo.split("/", 1)[0]
+        branch = f"auto/issue-{issue_number}"
+        pulls = list(repo.get_pulls(state="open", head=f"{owner}:{branch}"))
+        if not pulls:
+            return None
+        pr = pulls[0]
+        pr.edit(state="closed")
+        logger.info(
+            "github_pr_auto_closed", pr=pr.number, issue=issue_number, repo=self._pr_repo
+        )
+        return pr.number
+
     def close_issue(self, issue_number: int, state_reason: str | None = None) -> None:
         issue = self._repo(self._issue_repo).get_issue(issue_number)
         # state_reason 은 'completed' / 'not_planned' / 'reopened' / None.

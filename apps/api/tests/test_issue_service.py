@@ -41,6 +41,9 @@ class RecordingGitHub(GitHubPort):
     ) -> None:  # pragma: no cover
         raise NotImplementedError
 
+    def close_pr_for_issue(self, issue_number: int) -> int | None:  # pragma: no cover
+        raise NotImplementedError
+
     def list_issue_titles(self) -> dict[int, str]:  # pragma: no cover
         return {}
 
